@@ -27,6 +27,14 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  let userRole = null
+  if (user) {
+    const { data: profile } = await supabase.from('profiles').select('household_role').eq('id', user.id).single()
+    userRole = profile?.household_role
+  }
+
   const { data: students } = await supabase.from('students').select('*')
   const { data: subjects } = await supabase.from('subjects').select('*').order('name')
   const { data: activities } = await supabase.from('activities').select('*').order('name')
@@ -37,7 +45,7 @@ export default async function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <Navigation students={students || []}>
+        <Navigation students={students || []} userRole={userRole}>
           {children}
           <Suspense fallback={null}>
             <GlobalModalManager students={students || []} subjects={subjects || []} activities={activities || []} />

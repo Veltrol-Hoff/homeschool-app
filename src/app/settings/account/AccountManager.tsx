@@ -21,12 +21,15 @@ export default function AccountManager({ profiles, currentUserId, students }: { 
     setStatus('Updating...')
     const form = e.target as HTMLFormElement
     const displayName = (form.elements.namedItem('display_name') as HTMLInputElement).value
+    const roleInput = form.elements.namedItem('household_role') as HTMLSelectElement | null
+    const newRole = roleInput ? roleInput.value : null
     const linkedStudentInput = form.elements.namedItem('linked_student_id') as HTMLSelectElement | null
     const linkedStudentId = linkedStudentInput ? (linkedStudentInput.value || null) : null
 
     // Update profile
     const { error } = await supabase.from('profiles').update({ 
       display_name: displayName,
+      ...(newRole && { household_role: newRole }),
       ...(linkedStudentInput && { linked_student_id: linkedStudentId })
     }).eq('id', id)
     
@@ -67,6 +70,21 @@ export default function AccountManager({ profiles, currentUserId, students }: { 
                   <label className="block text-xs font-semibold mb-1 text-stone-500">Display Name</label>
                   <input name="display_name" defaultValue={profile.display_name} className="w-full rounded-md border-stone-300 shadow-sm focus:border-slate-500  p-2 text-sm" required />
                 </div>
+
+                {isOwner && profile.id !== currentUserId && (
+                  <div>
+                    <label className="block text-xs font-semibold mb-1 text-stone-500">Account Role</label>
+                    <select 
+                      name="household_role"
+                      defaultValue={profile.household_role}
+                      className="w-full rounded-md border-stone-300 shadow-sm focus:border-slate-500 p-2 text-sm"
+                    >
+                      <option value="owner">Owner</option>
+                      <option value="co-owner">Co-owner</option>
+                      <option value="student">Student</option>
+                    </select>
+                  </div>
+                )}
 
                 {profile.household_role === 'student' && (
                   <div>

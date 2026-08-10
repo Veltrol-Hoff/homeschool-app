@@ -5,7 +5,7 @@ import Link from'next/link'
 import { usePathname } from'next/navigation'
 import * as LucideIcons from'lucide-react'
 
-export default function Navigation({ children, students = [] }: { children: React.ReactNode, students?: any[] }) {
+export default function Navigation({ children, students = [], userRole }: { children: React.ReactNode, students?: any[], userRole?: string | null }) {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
 
@@ -95,27 +95,29 @@ export default function Navigation({ children, students = [] }: { children: Reac
               </div>
             </div>
 
-            <div>
-              <p className="px-2 text-xs font-semibold text-stone-600 uppercase tracking-wider mb-2">Settings</p>
-              <div className="space-y-1">
-                {settingsLinks.map(l => {
-                  const isActive = pathname.startsWith(l.href)
-                  return (
-                    <Link 
-                      key={l.href} 
-                      href={l.href}
-                      onClick={() => setIsOpen(false)}
-                      className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
-                        isActive ?'bg-slate-800 text-white shadow-sm':'text-stone-800  hover:bg-slate-200  hover:text-slate-900'
-                      }`}
-                    >
-                      {l.icon}
-                      <span className="font-medium text-sm">{l.label}</span>
-                    </Link>
-                  )
-                })}
+            {userRole !== 'student' && (
+              <div>
+                <p className="px-2 text-xs font-semibold text-stone-600 uppercase tracking-wider mb-2">Settings</p>
+                <div className="space-y-1">
+                  {settingsLinks.map(l => {
+                    const isActive = pathname.startsWith(l.href)
+                    return (
+                      <Link 
+                        key={l.href} 
+                        href={l.href}
+                        onClick={() => setIsOpen(false)}
+                        className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
+                          isActive ?'bg-slate-800 text-white shadow-sm':'text-stone-800  hover:bg-slate-200  hover:text-slate-900'
+                        }`}
+                      >
+                        {l.icon}
+                        <span className="font-medium text-sm">{l.label}</span>
+                      </Link>
+                    )
+                  })}
+                </div>
               </div>
-            </div>
+            )}
 
           </nav>
           <div className="p-4 border-t border-stone-300">
