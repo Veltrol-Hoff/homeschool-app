@@ -1,0 +1,42 @@
+const fs = require('fs');
+const path = require('path');
+
+function walk(dir, callback) {
+    fs.readdir(dir, function(err, list) {
+        if (err) return callback(err);
+        var pending = list.length;
+        if (!pending) return callback(null);
+        list.forEach(function(file) {
+            file = path.resolve(dir, file);
+            fs.stat(file, function(err, stat) {
+                if (stat && stat.isDirectory()) {
+                    walk(file, function(err) {
+                        if (!--pending) callback(null);
+                    });
+                } else {
+                    if (file.endsWith('.tsx') || file.endsWith('.ts') || file.endsWith('.js') || file.endsWith('.css')) {
+                        // Skip globals.css
+                        if (file.endsWith('globals.css')) {
+                            if (!--pending) callback(null);
+                            return;
+                        }
+                        let content = fs.readFileSync(file, 'utf8');
+                        // Revert bg-[#F7F3E7] back to bg-white
+                        let safeContent = content.replace(/bg-\[#F7F3E7\]/g, 'bg-white');
+                        
+                        if (content !== safeContent) {
+                            fs.writeFileSync(file, safeContent, 'utf8');
+                            console.log('Restored bg-white in ' + file);
+                        }
+                    }
+                    if (!--pending) callback(null);
+                }
+            });
+        });
+    });
+}
+
+walk('src', function(err) {
+    if (err) throw err;
+    console.log('Done restoring bg-white!');
+});
