@@ -10,6 +10,7 @@ export default async function AccountSettingsPage() {
   if (!user) return redirect('/login')
 
   const { data: profiles } = await supabase.from('profiles').select('*').order('household_role', { ascending: false })
+  const { data: students } = await supabase.from('students').select('*').order('birth_date', { ascending: false })
   const settings = await getSchoolSettings()
   const { data: academicYears } = await supabase.from('academic_years').select('*').order('start_date', { ascending: false })
 
@@ -20,7 +21,7 @@ export default async function AccountSettingsPage() {
         <p className="text-stone-500">Manage household owners, co-owners, and student logins.</p>
       </div>
 
-      <AccountManager profiles={profiles || []} currentUserId={user.id} />
+      <AccountManager profiles={profiles || []} currentUserId={user.id} students={students || []} />
 
       <AcademicYearManager academicYears={academicYears || []} />
 

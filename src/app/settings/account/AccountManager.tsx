@@ -3,8 +3,9 @@
 import { useState } from'react'
 import { createClient } from'@/utils/supabase/client'
 import EditPasswordModal from '@/components/EditPasswordModal'
+import InviteForm from '@/components/InviteForm'
 
-export default function AccountManager({ profiles, currentUserId }: { profiles: any[], currentUserId: string }) {
+export default function AccountManager({ profiles, currentUserId, students }: { profiles: any[], currentUserId: string, students: any[] }) {
   const currentUserProfile = profiles.find(p => p.id === currentUserId)
   const isOwner = currentUserProfile?.household_role === 'owner'
   const [editingUserId, setEditingUserId] = useState<string | null>(null)
@@ -13,22 +14,26 @@ export default function AccountManager({ profiles, currentUserId }: { profiles: 
   const [status, setStatus] = useState('')
   const supabase = createClient()
 
+  const [showInviteForm, setShowInviteForm] = useState(false)
+
   async function handleUpdateProfile(e: React.FormEvent, id: string) {
     e.preventDefault()
     setStatus('Updating...')
     const form = e.target as HTMLFormElement
     const displayName = (form.elements.namedItem('display_name') as HTMLInputElement).value
+    const linkedStudentInput = form.elements.namedItem('linked_student_id') as HTMLSelectElement | null
+    const linkedStudentId = linkedStudentInput ? (linkedStudentInput.value || null) : null
 
     // Update profile
-    const { error } = await supabase.from('profiles').update({ display_name: displayName }).eq('id', id)
+    const { error } = await supabase.from('profiles').update({ 
+      display_name: displayName,
+      ...(linkedStudentInput && { linked_student_id: linkedStudentId })
+    }).eq('id', id)
+    
     if (error) {
       setStatus('Error updating profile')
       return
     }
-
-    // If you want users to be able to change their own password, you would do it here. 
-    // But we are letting EditPasswordModal handle it for everyone instead to keep it unified, 
-    // or just leaving the profile update for display name.
 
     setStatus('Profile updated!')
     setTimeout(() => {
@@ -38,18 +43,20 @@ export default function AccountManager({ profiles, currentUserId }: { profiles: 
     }, 1500)
   }
 
-  function handleInvite() {
-    alert("In this demo version, inviting members via email is simulated.")
-  }
-
   return (
     <div className="bg-white  rounded-xl shadow-sm border border-stone-100  overflow-hidden">
       <div className="p-4 border-b border-stone-200  bg-stone-50  flex justify-between items-center">
         <h2 className="font-bold">Household Profiles</h2>
-        <button onClick={handleInvite} className="px-3 py-1.5 bg-stone-900 text-white rounded-md text-sm font-medium hover:bg-stone-800   transition-colors">
-          + Invite Member
+        <button onClick={() => setShowInviteForm(!showInviteForm)} className="px-3 py-1.5 bg-stone-900 text-white rounded-md text-sm font-medium hover:bg-stone-800   transition-colors">
+          {showInviteForm ? 'Cancel Invite' : '+ Invite Member'}
         </button>
       </div>
+
+      {showInviteForm && (
+        <div className="p-4 border-b border-stone-100 bg-stone-50">
+          <InviteForm students={students} />
+        </div>
+      )}
 
       <div className="divide-y divide-stone-100">
         {profiles?.map(profile => (
@@ -58,10 +65,25 @@ export default function AccountManager({ profiles, currentUserId }: { profiles: 
               <form onSubmit={(e) => handleUpdateProfile(e, profile.id)} className="space-y-4 max-w-md bg-stone-50  p-4 rounded-lg border border-stone-200">
                 <div>
                   <label className="block text-xs font-semibold mb-1 text-stone-500">Display Name</label>
-                  <input name="display_name"defaultValue={profile.display_name} className="w-full rounded-md border-stone-300 shadow-sm focus:border-slate-500  p-2 text-sm"required />
+                  <input name="display_name" defaultValue={profile.display_name} className="w-full rounded-md border-stone-300 shadow-sm focus:border-slate-500  p-2 text-sm" required />
                 </div>
 
-                {/* Password change is now handled by EditPasswordModal outside this form */}
+                {profile.household_role === 'student' && (
+                  <div>
+                    <label className="block text-xs font-semibold mb-1 text-stone-500">Linked Student Record</label>
+                    <select 
+                      name="linked_student_id" 
+                      defaultValue={profile.linked_student_id || ""} 
+                      className="w-full rounded-md border-stone-300 shadow-sm focus:border-slate-500 p-2 text-sm"
+                    >
+                      <option value="">-- No student linked --</option>
+                      {students.map(s => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-stone-400 mt-1">Allows this user to log their own activities.</p>
+                  </div>
+                )}
 
                 <div className="flex gap-2 items-center">
                   <button type="submit"className="px-3 py-1.5 bg-slate-600 text-white rounded-md text-sm hover:bg-slate-700">Save Changes</button>
