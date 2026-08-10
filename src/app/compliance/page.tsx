@@ -3,6 +3,7 @@ import { redirect } from'next/navigation'
 import Link from 'next/link'
 import ComplianceExportAllButton from '@/components/ComplianceExportAllButton'
 import PacingRadar from '@/components/PacingRadar'
+import SubjectPieChart from '@/components/SubjectPieChart'
 import fs from 'fs'
 
 const WI_REQUIRED_SUBJECTS = [
@@ -218,9 +219,12 @@ export default async function CompliancePage() {
                     </div>
                   ))}
                 </div>
-                <p className="text-xs text-stone-400 mt-4">
+                <p className="text-xs text-stone-400 mt-4 mb-8">
                   Note: A subject is marked checked once any activity is logged against it for the current year.
                 </p>
+
+                <h3 className="font-semibold text-lg mb-4 text-stone-700 pt-6 border-t border-stone-100">Subject Distribution</h3>
+                <SubjectPieChart subjectStats={report.subjectStats} />
               </div>
 
               {/* Per-Subject Pacing / Hours */}
