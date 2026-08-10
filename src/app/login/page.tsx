@@ -9,11 +9,11 @@ export default async function LoginPage({
   const errorMessage = params.error
 
   return (
-    <div className="flex min-h-screen flex-col justify-center bg-stone-50 py-12 sm:px-6 lg:px-8">
+    <div className="flex min-h-screen flex-col justify-center bg-[#F7F3E7] py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-stone-900">
-          Homeschool Planner
-        </h2>
+        <div className="flex justify-center mb-2 px-4">
+          <img src="/logo.png" alt="Logo" className="w-full max-w-[280px] h-auto object-contain" />
+        </div>
         <p className="mt-2 text-center text-sm text-stone-600">
           Sign in or create an account
         </p>
@@ -105,6 +105,10 @@ export default async function LoginPage({
               </button>
             </div>
           </form>
+
+          <div className="mt-6 text-center text-sm text-stone-500">
+            Need help? Contact <a href="mailto:ehoffmann@veltrol.com" className="text-slate-600 hover:underline">ehoffmann@veltrol.com</a> or visit <a href="https://veltrol.com" target="_blank" rel="noopener noreferrer" className="text-slate-600 hover:underline">veltrol.com</a>.
+          </div>
         </div>
       </div>
     </div>
