@@ -29,6 +29,7 @@ export async function updateStudentSettings(studentId: string, formData: FormDat
 
   revalidatePath('/settings/students')
   revalidatePath(`/student/${studentId}`)
+  revalidatePath('/dashboard')
   return { success: true }
 }
 

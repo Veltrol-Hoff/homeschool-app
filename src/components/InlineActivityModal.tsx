@@ -5,7 +5,8 @@ import { useRouter } from'next/navigation'
 import * as LucideIcons from'lucide-react'
 import { createActivity, updateActivity, deleteActivity, createTrip } from'@/app/calendar/actions'
 import { createClient } from'@/utils/supabase/client'
-import { useEffect } from'react'
+import { useEffect, useCallback } from'react'
+import MediaUpload from '@/components/MediaUpload'
 
 export default function InlineActivityModal({ 
   isOpen, 
@@ -40,6 +41,17 @@ export default function InlineActivityModal({
   const [isLoading, setIsLoading] = useState(!!editId)
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [artifacts, setArtifacts] = useState<any[]>([])
+
+  const fetchMedia = useCallback(async () => {
+    if (!editId || initialTab === 'Trip') return;
+    const supabase = createClient()
+    const { data: mediaData } = await supabase.from('media_attachments')
+      .select('*')
+      .eq('log_id', editId)
+      .order('created_at', { ascending: false })
+    if (mediaData) setArtifacts(mediaData)
+  }, [editId, initialTab])
 
   useEffect(() => {
     if (editId) {
@@ -58,7 +70,8 @@ export default function InlineActivityModal({
           const { data, error } = await supabase.from('daily_logs').select('*').eq('id', editId).single()
           if (data) {
             setExistingData(data)
-            setActiveTab(data.subject_id ?'Course': (data.activity_id ?'Activity':'Trip'))
+            setActiveTab(data.subject_id ? 'Course' : 'Activity')
+            await fetchMedia()
           }
         }
         setIsLoading(false)
@@ -369,6 +382,15 @@ export default function InlineActivityModal({
                     )}
                   </div>
                 </div>
+
+                {editId && (
+                  <div className="pt-4 mt-2 border-t border-stone-200">
+                    <label className="block text-sm font-medium mb-3 flex items-center gap-2">
+                      <LucideIcons.Camera size={16} /> Portfolio & Media
+                    </label>
+                    <MediaUpload logId={editId} existingMedia={artifacts} onUpdate={fetchMedia} />
+                  </div>
+                )}
               </>
             )}
 

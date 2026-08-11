@@ -2,6 +2,7 @@ import { createClient } from'@/utils/supabase/server'
 import { redirect } from'next/navigation'
 import Link from'next/link'
 import BenchmarkList from'@/components/BenchmarkList'
+import RigorTrendAnalyzer from'@/components/RigorTrendAnalyzer'
 
 export default async function BenchmarksPage({ searchParams }: { searchParams: { student?: string } }) {
   const supabase = await createClient()
@@ -75,6 +76,8 @@ export default async function BenchmarksPage({ searchParams }: { searchParams: {
             They are <strong>not legally required</strong> for your homeschool. Use them simply to see how {selectedStudent?.name}'s learning aligns with typical pacing!
           </p>
         </div>
+
+        <RigorTrendAnalyzer studentId={selectedStudentId} />
 
         {(!benchmarks || benchmarks.length === 0) ? (
           <div className="text-center p-8 bg-white  rounded-xl border border-stone-100">

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from"next/font/google";
 import"./globals.css";
 import Navigation from"@/components/Navigation";
 import GlobalModalManager from"@/components/GlobalModalManager";
+import AudioLogger from"@/components/AudioLogger";
 import { Suspense } from"react";
 import { createClient } from"@/utils/supabase/server";
 
@@ -50,6 +51,7 @@ export default async function RootLayout({
           <Suspense fallback={null}>
             <GlobalModalManager students={students || []} subjects={subjects || []} activities={activities || []} />
           </Suspense>
+          <AudioLogger />
         </Navigation>
       </body>
     </html>

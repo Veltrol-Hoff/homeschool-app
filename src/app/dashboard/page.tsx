@@ -5,6 +5,8 @@ import { isPi1206FilingWindow } from'@/utils/date'
 import PacingRadar from'@/components/PacingRadar'
 import DailyChecklist from'@/components/DailyChecklist'
 import StatisticsDashboard from '@/components/StatisticsDashboard'
+import CoopTracker from '@/components/CoopTracker'
+import WeeklyWins from '@/components/WeeklyWins'
 
 // This would usually be dynamic, but hardcoding for Phase 1 UI structure
 const GOAL_HOURS = 875
@@ -37,9 +39,20 @@ export default async function DashboardPage() {
   
   const today = new Date().toISOString().split('T')[0]
 
+  const todayDate = new Date()
+  const sevenDaysAgo = new Date()
+  sevenDaysAgo.setDate(todayDate.getDate() - 7)
+  const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0]
+
   const { data: logs } = await supabase
     .from('daily_logs')
     .select('*, subjects(name, color_hex, icon_name), activities(name, color, icon)')
+
+  const { data: recentStandards } = await supabase
+    .from('curriculum_item_standards')
+    .select('created_at')
+    .eq('confirmed', true)
+    .gte('created_at', sevenDaysAgo.toISOString())
 
   const { data: settingsData } = await supabase.from('school_settings').select('*').eq('id', 1).single()
   const settings = settingsData || { year_start_month: 7, year_start_day: 1, goal_hours: 875 }
@@ -48,6 +61,10 @@ export default async function DashboardPage() {
   const { data: tripStudents } = await supabase
     .from('trip_students')
     .select('student_id, trips(start_date, hours_credited)')
+
+  const { data: coopEnrollments } = await supabase
+    .from('co_op_enrollments')
+    .select('*, co_op_classes(*), co_op_attendance(*)')
 
   const studentData = await Promise.all((students || []).map(async student => {
     // Find current academic year
@@ -142,9 +159,11 @@ export default async function DashboardPage() {
       return 0
     })
     
+    const studentCoopEnrollments = coopEnrollments?.filter(e => e.student_id === student.id) || []
+
     return {
       ...student,
-      grade_level: currentYear?.grade_level || 'Unknown Grade',
+      grade_level: gradeLevel,
       totalHours,
       scheduledHours,
       percentComplete,
@@ -154,9 +173,47 @@ export default async function DashboardPage() {
       curriculumStatus,
       hoursDetails,
       curriculumDetails,
-      dueItems
+      dueItems,
+      studentCoopEnrollments,
+      weeklyScheduledMinutes: 0 // We'll compute this next
     }
   })) || []
+
+  // Compute Overload Radar
+  const nextWeek = new Date()
+  nextWeek.setDate(nextWeek.getDate() + 7)
+  const nextWeekStr = nextWeek.toISOString().split('T')[0]
+
+  let familyWeeklyMinutes = 0
+  
+  studentData.forEach(student => {
+    // Planned logs next 7 days
+    const weeklyLogs = logs?.filter(log => log.student_id === student.id && log.log_type === 'Planned' && log.date >= today && log.date < nextWeekStr) || []
+    familyWeeklyMinutes += weeklyLogs.reduce((sum, log) => sum + log.duration_minutes, 0)
+
+    // Weekly Co-op classes
+    student.studentCoopEnrollments.forEach((enrollment: any) => {
+      familyWeeklyMinutes += enrollment.co_op_classes?.duration_minutes || 60
+    })
+
+    // Upcoming Trips
+    const upcomingTrips = tripStudents?.filter(ts => ts.student_id === student.id).map(ts => ts.trips).filter(t => t && t.start_date >= today && t.start_date < nextWeekStr) || []
+    familyWeeklyMinutes += upcomingTrips.reduce((sum, trip: any) => sum + ((trip.hours_credited || 0) * 60), 0)
+  })
+
+  const familyWeeklyHours = Math.floor(familyWeeklyMinutes / 60)
+  const isOverloaded = familyWeeklyHours > 35
+
+  // Compute Weekly Wins
+  const weeklyWins = {
+    completedActivities: 0,
+    totalHours: 0,
+    standardsMastered: recentStandards?.length || 0
+  }
+
+  const pastWeekLogs = logs?.filter(log => log.log_type === 'Completed' && log.date >= sevenDaysAgoStr && log.date <= today) || []
+  weeklyWins.completedActivities = pastWeekLogs.length
+  weeklyWins.totalHours = Math.floor(pastWeekLogs.reduce((sum, log) => sum + log.duration_minutes, 0) / 60)
 
   const showBanner = isPi1206FilingWindow()
 
@@ -173,6 +230,20 @@ export default async function DashboardPage() {
               </p>
               <p className="text-sm text-amber-700">
                 Due by October 15. Make sure to submit your form to the DPI.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {isOverloaded && (
+          <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-r shadow-sm flex items-start">
+            <span className="text-red-500 mr-3 mt-0.5">🚨</span>
+            <div>
+              <p className="font-medium text-red-800">
+                Schedule Overload Warning
+              </p>
+              <p className="text-sm text-red-700">
+                You have {familyWeeklyHours} hours of activities scheduled across all students this week. This exceeds the recommended 35 hours and may lead to burnout. Consider delaying some activities or skipping a co-op class.
               </p>
             </div>
           </div>
@@ -197,6 +268,8 @@ export default async function DashboardPage() {
           </div>
         </div>
 
+        <WeeklyWins {...weeklyWins} />
+
         {studentData.length === 0 ? (
           <div className="text-center py-12 bg-white  rounded-xl shadow-sm border border-stone-100">
             <p className="text-stone-500  mb-4">No students found.</p>
@@ -207,9 +280,18 @@ export default async function DashboardPage() {
             {studentData.map(student => (
               <div key={student.id} className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden">
                 <div className="p-5 border-b border-stone-100  flex justify-between items-center bg-stone-50/50">
-                  <Link href={`/student/${student.id}`} className="hover:underline">
-                    <h2 className="font-semibold text-xl text-slate-700">{student.name}</h2>
-                  </Link>
+                  <div className="flex items-center gap-4">
+                    {student.avatar_url ? (
+                      <img src={student.avatar_url} alt={student.name} className="w-12 h-12 rounded-full object-cover border border-stone-200 shadow-sm"/>
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-stone-200 flex items-center justify-center font-bold text-stone-500 text-lg shadow-sm">
+                        {student.name.charAt(0)}
+                      </div>
+                    )}
+                    <Link href={`/student/${student.id}`} className="hover:underline">
+                      <h2 className="font-semibold text-xl text-slate-700">{student.name}</h2>
+                    </Link>
+                  </div>
                   <div className="flex items-center gap-3">
                     <span className="text-sm bg-stone-200  px-3 py-1 rounded-full font-medium text-stone-700">
                       {student.grade_level}
@@ -249,6 +331,10 @@ export default async function DashboardPage() {
                       </p>
                     </div>
                   </div>
+
+                  {student.studentCoopEnrollments.length > 0 && (
+                    <CoopTracker enrollments={student.studentCoopEnrollments} />
+                  )}
 
                   {/* Checklist Status & Mini Checklist */}
                   <div className="bg-stone-50  rounded-xl p-4 flex flex-col gap-3 border border-stone-200">

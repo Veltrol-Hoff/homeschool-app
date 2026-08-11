@@ -13,6 +13,7 @@ import {
 } from'./actions'
 import { format } from'date-fns'
 import * as LucideIcons from'lucide-react'
+import { createClient } from'@/utils/supabase/client'
 
 const GRADES = ['4K','5K','1st Grade','2nd Grade','3rd Grade','4th Grade','5th Grade','6th Grade','7th Grade','8th Grade','9th Grade','10th Grade','11th Grade','12th Grade']
 
@@ -25,6 +26,8 @@ export default function StudentSettingsForm({ student, globalAcademicYears = [] 
   const [editingBioId, setEditingBioId] = useState<string | null>(null)
   const [addingMediaBioId, setAddingMediaBioId] = useState<string | null>(null)
   const [mediaUrl, setMediaUrl] = useState("")
+  const [avatarUrl, setAvatarUrl] = useState(student.avatar_url || "")
+  const supabase = createClient()
 
   // Year editing state
   const [editingYearId, setEditingYearId] = useState<string | null>(null)
@@ -122,6 +125,28 @@ export default function StudentSettingsForm({ student, globalAcademicYears = [] 
     }
   }
 
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!e.target.files || e.target.files.length === 0) return
+    const file = e.target.files[0]
+    
+    // Upload to 'media' bucket
+    const fileExt = file.name.split('.').pop()
+    const fileName = `${Math.random()}.${fileExt}`
+    const filePath = `avatars/${fileName}`
+    
+    const { error: uploadError } = await supabase.storage
+      .from('media')
+      .upload(filePath, file)
+      
+    if (uploadError) {
+      alert("Error uploading photo")
+      return
+    }
+    
+    const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(filePath)
+    setAvatarUrl(publicUrl)
+  }
+
   const entries = student.living_bio_entries || []
   const years = student.student_academic_years || []
 
@@ -135,22 +160,20 @@ export default function StudentSettingsForm({ student, globalAcademicYears = [] 
       {/* Settings Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1">Avatar URL</label>
+          <label className="block text-sm font-medium mb-1">Student Photo</label>
           <div className="flex gap-4 items-center">
-            {student.avatar_url ? (
-              <img src={student.avatar_url} alt="Avatar"className="w-12 h-12 rounded-full object-cover border"/>
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="Avatar"className="w-16 h-16 rounded-full object-cover border shadow-sm"/>
             ) : (
-              <div className="w-12 h-12 rounded-full bg-stone-200  flex items-center justify-center">
+              <div className="w-16 h-16 rounded-full bg-stone-200 flex items-center justify-center">
                 <LucideIcons.User className="text-stone-400"/>
               </div>
             )}
-            <input 
-              type="url"
-              name="avatar_url"
-              defaultValue={student.avatar_url ||''}
-              placeholder="https://example.com/avatar.jpg"
-              className="flex-1 rounded-md border-stone-300 shadow-sm focus:border-slate-500  p-2.5 border text-sm"
-            />
+            <label className="px-4 py-2 bg-white border border-stone-300 rounded-md text-sm font-medium text-slate-700 cursor-pointer hover:bg-stone-50 shadow-sm transition-colors">
+              Upload Photo
+              <input type="file" className="hidden" accept="image/*" onChange={handlePhotoUpload} />
+            </label>
+            <input type="hidden" name="avatar_url" value={avatarUrl} />
           </div>
         </div>
 

@@ -91,9 +91,10 @@ export default function TranscriptClient({
       subject,
       totalHours,
       suggestedCredits,
-      suggestedGrade
+      suggestedGrade,
+      isReady: totalHours >= hoursPerCredit
     }
-  }).filter(Boolean) as { subject: Subject, totalHours: number, suggestedCredits: number, suggestedGrade: string }[]
+  }).filter(Boolean) as { subject: Subject, totalHours: number, suggestedCredits: number, suggestedGrade: string, isReady: boolean }[]
 
   const handleFinalize = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -298,9 +299,16 @@ export default function TranscriptClient({
                     <input type="hidden" name="subject_id" value={p.subject.id} />
                     
                     <div className="flex-1 w-full">
-                      <h3 className="font-semibold text-lg text-stone-800">{p.subject.name}</h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-lg text-stone-800">{p.subject.name}</h3>
+                        {p.isReady && (
+                          <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-full uppercase tracking-wider border border-emerald-200">
+                            Ready
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm text-stone-500 mb-2">
-                        {p.totalHours.toFixed(1)} hours logged
+                        {p.totalHours.toFixed(1)} hours logged / {hoursPerCredit} req
                       </p>
                       <div>
                         <label className="block text-xs font-medium text-stone-500 mb-1">Course Name (Optional Override)</label>

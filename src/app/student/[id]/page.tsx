@@ -126,14 +126,23 @@ export default async function StudentDashboardPage({ params }: { params: Promise
         </div>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 relative z-10">
           <div>
-            <h1 className="text-3xl font-black text-stone-900  mb-2 flex items-center gap-3">
-              Welcome, {student.name}!
-              {gradeLevel && (
-                <span className="text-lg font-semibold bg-slate-100 text-slate-800   px-3 py-1 rounded-full">
-                  {gradeLevel}
-                </span>
+            <div className="flex items-center gap-4 mb-2">
+              {student.avatar_url ? (
+                <img src={student.avatar_url} alt={student.name} className="w-16 h-16 rounded-full object-cover border border-stone-200 shadow-sm"/>
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-stone-200 flex items-center justify-center font-bold text-stone-500 text-2xl shadow-sm border border-stone-200">
+                  {student.name.charAt(0)}
+                </div>
               )}
-            </h1>
+              <h1 className="text-3xl font-black text-stone-900 flex items-center gap-3">
+                Welcome, {student.name}!
+                {gradeLevel && (
+                  <span className="text-lg font-semibold bg-slate-100 text-slate-800 px-3 py-1 rounded-full">
+                    {gradeLevel}
+                  </span>
+                )}
+              </h1>
+            </div>
             <Link 
               href="/portfolio"
               className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-yellow-950 font-bold rounded-lg shadow-sm transition-colors mt-4"

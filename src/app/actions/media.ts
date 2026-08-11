@@ -43,4 +43,36 @@ export async function togglePortfolioSample(mediaId: string, currentState: boole
 
   revalidatePath('/trips')
   revalidatePath('/dashboard')
+  revalidatePath('/portfolio')
+}
+
+export async function deleteMediaAttachment(mediaId: string, fileUrl: string) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error("Unauthorized")
+
+  // Extract filename from the end of the URL
+  const urlParts = fileUrl.split('/')
+  const fileName = urlParts[urlParts.length - 1]
+
+  if (fileName) {
+    const { error: storageError } = await supabase.storage.from('media').remove([fileName])
+    if (storageError) {
+      console.error("Storage delete error:", storageError)
+    }
+  }
+
+  const { error: dbError } = await supabase.from('media_attachments')
+    .delete()
+    .eq('id', mediaId)
+
+  if (dbError) {
+    console.error("Delete media DB error:", dbError)
+    throw new Error("Failed to delete media record")
+  }
+
+  revalidatePath('/trips')
+  revalidatePath('/dashboard')
+  revalidatePath('/portfolio')
 }
