@@ -46,7 +46,7 @@ Throughout the application, any AI-assisted feature (e.g., standards tagging, wo
 - **Goal:** Exportable PDF work portfolio with data and photos, plus a browser-based slideshow preview of starred content/narrations.
 
 ### Phase 6 — Future / Not Scoped Now
-- Two-way Google Calendar sync, full video editing, multi-family features, monetization.
+- Two-way Google Calendar sync, multi-family features, monetization.
 
 ## 4. Complete Data Model
 

@@ -286,8 +286,8 @@ export async function deleteActivity(id: string) {
 export async function toggleLogCompletion(id: string, isCompleted: boolean, moveToToday: boolean = false) {
   const supabase = await createClient()
   
-  // Fetch existing log to check original_date
-  const { data: log } = await supabase.from('daily_logs').select('original_date, date').eq('id', id).single()
+  // Fetch existing log to check original_date and shared group
+  const { data: log } = await supabase.from('daily_logs').select('original_date, date, shared_activity_group_id').eq('id', id).single()
 
   const updateData: any = {
     log_type: isCompleted ?'Completed':'Planned',
@@ -301,9 +301,20 @@ export async function toggleLogCompletion(id: string, isCompleted: boolean, move
     }
   }
   
-  const { error } = await supabase.from('daily_logs')
-    .update(updateData)
-    .eq('id', id)
+  let error;
+  if (log?.shared_activity_group_id) {
+    // Update all logs in the shared group
+    const { error: sharedError } = await supabase.from('daily_logs')
+      .update(updateData)
+      .eq('shared_activity_group_id', log.shared_activity_group_id)
+    error = sharedError;
+  } else {
+    // Update just this specific log
+    const { error: singleError } = await supabase.from('daily_logs')
+      .update(updateData)
+      .eq('id', id)
+    error = singleError;
+  }
     
   if (error) throw new Error(error.message)
   
@@ -312,7 +323,7 @@ export async function toggleLogCompletion(id: string, isCompleted: boolean, move
   return { success: true }
 }
 
-export async function createTrip(data: { title: string, location: string, start_date: string, end_date: string, hours_credited?: number, display_color: string, subject_id?: string, students: string[] }) {
+export async function createTrip(data: { title: string, location: string, start_date: string, end_date: string, hours_credited?: number, display_color: string, subject_ids?: string[], theme?: string, students: string[] }) {
   const supabase = await createClient()
   
   // Insert trip
@@ -325,7 +336,7 @@ export async function createTrip(data: { title: string, location: string, start_
       end_date: data.end_date,
       hours_credited: data.hours_credited || 0,
       display_color: data.display_color,
-      subject_id: data.subject_id || null,
+      theme: data.theme || null,
       trip_type:'Vacation'
     })
     .select()
@@ -342,6 +353,65 @@ export async function createTrip(data: { title: string, location: string, start_
     
     const { error: tsError } = await supabase.from('trip_students').insert(studentInserts)
     if (tsError) throw new Error(tsError.message)
+
+    // Insert trip_subjects
+    if (data.subject_ids && data.subject_ids.length > 0) {
+      const subjectInserts = data.subject_ids.map(subId => ({
+        trip_id: trip.id,
+        subject_id: subId
+      }))
+      const { error: subError } = await supabase.from('trip_subjects').insert(subjectInserts)
+      if (subError) throw new Error(subError.message)
+    }
+
+    // Auto-create daily_logs for the trip if hours are credited
+    if ((data.hours_credited || 0) > 0) {
+      // Find current academic year
+      const { data: year } = await supabase.from('academic_years').select('id').eq('is_active', true).single()
+      let yearId = year?.id
+      if (!yearId) {
+        const { data: anyYear } = await supabase.from('academic_years').select('id').limit(1).maybeSingle()
+        yearId = anyYear?.id
+      }
+      
+      if (yearId) {
+        const logInserts: any[] = []
+        if (data.subject_ids && data.subject_ids.length > 0) {
+          const durationPerSubject = ((data.hours_credited || 0) * 60) / data.subject_ids.length
+          for (const studentId of data.students) {
+            for (const subjectId of data.subject_ids) {
+              logInserts.push({
+                student_id: studentId,
+                academic_year_id: yearId,
+                date: data.start_date,
+                log_type: 'Field Trip',
+                duration_minutes: durationPerSubject,
+                subject_id: subjectId,
+                notes: `Trip: ${data.title}`,
+                trip_id: trip.id,
+                pending_parent_approval: false
+              })
+            }
+          }
+        } else {
+          for (const studentId of data.students) {
+            logInserts.push({
+              student_id: studentId,
+              academic_year_id: yearId,
+              date: data.start_date,
+              log_type: 'Field Trip',
+              duration_minutes: (data.hours_credited || 0) * 60,
+              subject_id: null,
+              notes: `Trip: ${data.title}`,
+              trip_id: trip.id,
+              pending_parent_approval: false
+            })
+          }
+        }
+        const { error: logError } = await supabase.from('daily_logs').insert(logInserts)
+        if (logError) throw new Error(logError.message)
+      }
+    }
   }
   
   revalidatePath('/calendar')
@@ -350,7 +420,7 @@ export async function createTrip(data: { title: string, location: string, start_
   return { success: true }
 }
 
-export async function updateTrip(id: string, data: { title: string, location: string, start_date: string, end_date: string, hours_credited?: number, display_color: string, subject_id?: string, students: string[] }) {
+export async function updateTrip(id: string, data: { title: string, location: string, start_date: string, end_date: string, hours_credited?: number, display_color: string, subject_ids?: string[], theme?: string, students: string[] }) {
   const supabase = await createClient()
   
   const { error: tripError } = await supabase
@@ -362,7 +432,7 @@ export async function updateTrip(id: string, data: { title: string, location: st
       end_date: data.end_date,
       hours_credited: data.hours_credited || 0,
       display_color: data.display_color,
-      subject_id: data.subject_id || null
+      theme: data.theme || null
     })
     .eq('id', id)
     
@@ -370,6 +440,8 @@ export async function updateTrip(id: string, data: { title: string, location: st
 
   // Update students by deleting and recreating
   await supabase.from('trip_students').delete().eq('trip_id', id)
+  // Clean up any existing auto-generated trip logs
+  await supabase.from('daily_logs').delete().eq('trip_id', id)
   
   if (data.students.length > 0) {
     const studentInserts = data.students.map(studentId => ({
@@ -378,6 +450,66 @@ export async function updateTrip(id: string, data: { title: string, location: st
     }))
     const { error: tsError } = await supabase.from('trip_students').insert(studentInserts)
     if (tsError) throw new Error(tsError.message)
+
+    // Update trip_subjects
+    await supabase.from('trip_subjects').delete().eq('trip_id', id)
+    if (data.subject_ids && data.subject_ids.length > 0) {
+      const subjectInserts = data.subject_ids.map(subId => ({
+        trip_id: id,
+        subject_id: subId
+      }))
+      const { error: subError } = await supabase.from('trip_subjects').insert(subjectInserts)
+      if (subError) throw new Error(subError.message)
+    }
+
+    // Re-create daily_logs for the trip if hours are credited
+    if ((data.hours_credited || 0) > 0) {
+      // Find current academic year
+      const { data: year } = await supabase.from('academic_years').select('id').eq('is_active', true).single()
+      let yearId = year?.id
+      if (!yearId) {
+        const { data: anyYear } = await supabase.from('academic_years').select('id').limit(1).maybeSingle()
+        yearId = anyYear?.id
+      }
+      
+      if (yearId) {
+        const logInserts: any[] = []
+        if (data.subject_ids && data.subject_ids.length > 0) {
+          const durationPerSubject = ((data.hours_credited || 0) * 60) / data.subject_ids.length
+          for (const studentId of data.students) {
+            for (const subjectId of data.subject_ids) {
+              logInserts.push({
+                student_id: studentId,
+                academic_year_id: yearId,
+                date: data.start_date,
+                log_type: 'Field Trip',
+                duration_minutes: durationPerSubject,
+                subject_id: subjectId,
+                notes: `Trip: ${data.title}`,
+                trip_id: id,
+                pending_parent_approval: false
+              })
+            }
+          }
+        } else {
+          for (const studentId of data.students) {
+            logInserts.push({
+              student_id: studentId,
+              academic_year_id: yearId,
+              date: data.start_date,
+              log_type: 'Field Trip',
+              duration_minutes: (data.hours_credited || 0) * 60,
+              subject_id: null,
+              notes: `Trip: ${data.title}`,
+              trip_id: id,
+              pending_parent_approval: false
+            })
+          }
+        }
+        const { error: logError } = await supabase.from('daily_logs').insert(logInserts)
+        if (logError) throw new Error(logError.message)
+      }
+    }
   }
   
   revalidatePath('/calendar')

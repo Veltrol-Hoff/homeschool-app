@@ -70,6 +70,13 @@ export default async function TranscriptsPage() {
     .from('transcripts')
     .select('*, subjects(name)')
 
+  // Fetch school settings
+  const { data: settings } = await supabase
+    .from('school_settings')
+    .select('hours_per_credit')
+    .eq('id', 1)
+    .single()
+
   return (
     <div className="min-h-screen bg-transparent  p-4 sm:p-8">
       <div className="max-w-5xl mx-auto space-y-6">
@@ -90,6 +97,7 @@ export default async function TranscriptsPage() {
           logs={logs || []}
           workSamples={(workSamples as any) || []}
           initialTranscripts={transcripts || []}
+          hoursPerCredit={settings?.hours_per_credit || 120}
         />
       </div>
     </div>

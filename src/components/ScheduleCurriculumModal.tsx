@@ -14,7 +14,7 @@ export default function ScheduleCurriculumModal({
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [selectedStudent, setSelectedStudent] = useState(students[0]?.id || '')
+  const [selectedStudents, setSelectedStudents] = useState<string[]>(students.length > 0 ? [students[0].id] : [])
   
   const [daysOfWeek, setDaysOfWeek] = useState<number[]>([1, 2, 3, 4, 5]) // Mon-Fri default
 
@@ -28,8 +28,8 @@ export default function ScheduleCurriculumModal({
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    if (!selectedStudent) {
-      setError("Please select a student.")
+    if (selectedStudents.length === 0) {
+      setError("Please select at least one student.")
       return
     }
     if (daysOfWeek.length === 0) {
@@ -41,7 +41,7 @@ export default function ScheduleCurriculumModal({
     setError(null)
     
     const formData = new FormData(e.currentTarget)
-    formData.append('student_id', selectedStudent)
+    selectedStudents.forEach(id => formData.append('student_id', id))
     daysOfWeek.forEach(d => formData.append('days_of_week', d.toString()))
     
     try {
@@ -74,23 +74,31 @@ export default function ScheduleCurriculumModal({
           )}
 
           <div>
-            <label htmlFor="student_id" className="block text-sm font-medium mb-1">Student</label>
+            <label className="block text-sm font-medium mb-2">Students</label>
             {students.length === 0 ? (
               <p className="text-sm text-stone-500">
                 You must assign this curriculum to a student first (use the Edit button on the library page).
               </p>
             ) : (
-              <select 
-                id="student_id" 
-                value={selectedStudent}
-                onChange={(e) => setSelectedStudent(e.target.value)}
-                required
-                className="w-full rounded-md border-stone-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 p-2.5 border"
-              >
+              <div className="space-y-2 max-h-40 overflow-y-auto border border-stone-200 rounded-md p-3">
                 {students.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
+                  <label key={s.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-stone-50 p-1 rounded">
+                    <input 
+                      type="checkbox" 
+                      checked={selectedStudents.includes(s.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedStudents([...selectedStudents, s.id])
+                        } else {
+                          setSelectedStudents(selectedStudents.filter(id => id !== s.id))
+                        }
+                      }}
+                      className="rounded border-stone-300 text-slate-600 focus:ring-slate-500"
+                    />
+                    {s.name}
+                  </label>
                 ))}
-              </select>
+              </div>
             )}
           </div>
 

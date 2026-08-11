@@ -95,13 +95,14 @@ export default function InlineActivityModal({
         const end_date = formData.get('end_date') as string
         const display_color = formData.get('display_color') as string
         const hours_credited = parseInt(formData.get('hours_credited') as string) || 0
-        const subject_id = formData.get('subject_id') as string || undefined
+        const subject_ids = formData.getAll('subject_ids') as string[]
+        const theme = formData.get('theme') as string
         
         if (editId) {
           const { updateTrip } = await import('@/app/calendar/actions')
-          await updateTrip(editId, { title, location, start_date, end_date, hours_credited, display_color, subject_id, students: selectedStudents })
+          await updateTrip(editId, { title, location, start_date, end_date, hours_credited, display_color, subject_ids, theme, students: selectedStudents })
         } else {
-          await createTrip({ title, location, start_date, end_date, hours_credited, display_color, subject_id, students: selectedStudents })
+          await createTrip({ title, location, start_date, end_date, hours_credited, display_color, subject_ids, theme, students: selectedStudents })
         }
       } else {
         const date = formData.get('date') as string
@@ -219,13 +220,22 @@ export default function InlineActivityModal({
           <form key={existingData?.id ||'new-form'} onSubmit={handleSubmit} className="space-y-4">
             
             {/* Select Subject */}
-            <div>
-              <label className="block text-sm font-medium mb-1">Subject {activeTab !=='Course'&&'(Optional)'}</label>
-              <select name="subject_id"defaultValue={existingData?.subject_id ||""} required={activeTab ==='Course'} className="w-full rounded-md border-stone-300 shadow-sm focus:border-slate-500   p-2 text-sm">
-                <option value="">Select a Subject...</option>
-                {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            </div>
+            {activeTab === 'Trip' ? (
+              <div>
+                <label className="block text-sm font-medium mb-1">Subjects (Optional, select multiple)</label>
+                <select name="subject_ids" multiple defaultValue={existingData?.trip_subjects?.map((ts:any) => ts.subject_id) || []} className="w-full rounded-md border-stone-300 shadow-sm focus:border-slate-500 p-2 text-sm min-h-[80px]">
+                  {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium mb-1">Subject {activeTab !=='Course'&&'(Optional)'}</label>
+                <select name="subject_id"defaultValue={existingData?.subject_id ||""} required={activeTab ==='Course'} className="w-full rounded-md border-stone-300 shadow-sm focus:border-slate-500   p-2 text-sm">
+                  <option value="">Select a Subject...</option>
+                  {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+            )}
             
             {activeTab ==='Activity'&& (
               <div>
@@ -276,9 +286,15 @@ export default function InlineActivityModal({
             {/* Dates / Times */}
             {activeTab ==='Trip'? (
               <>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Location</label>
-                  <input type="text"name="location"defaultValue={existingData?.location ||''} placeholder="e.g. Science Museum"className="w-full rounded-md border-stone-300 shadow-sm focus:border-slate-500   p-2 text-sm"/>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Location</label>
+                    <input type="text"name="location"defaultValue={existingData?.location ||''} placeholder="e.g. Science Museum"className="w-full rounded-md border-stone-300 shadow-sm focus:border-slate-500   p-2 text-sm"/>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Theme (Optional)</label>
+                    <input type="text"name="theme"defaultValue={existingData?.theme ||''} placeholder="e.g. Space Exploration"className="w-full rounded-md border-stone-300 shadow-sm focus:border-slate-500   p-2 text-sm"/>
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>

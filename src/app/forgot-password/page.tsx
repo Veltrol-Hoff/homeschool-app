@@ -65,9 +65,9 @@ export default async function ForgotPasswordPage({
             </div>
             
             <div className="text-center mt-4">
-              <Link href="/login" className="text-sm font-medium text-slate-600 hover:text-slate-500">
+              <a href="/login" className="text-sm font-medium text-slate-600 hover:text-slate-500">
                 &larr; Back to login
-              </Link>
+              </a>
             </div>
           </form>
         </div>

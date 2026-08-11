@@ -69,15 +69,27 @@ export default async function AccountSettingsPage() {
             </div>
           </div>
           
-          <div>
-            <label className="block text-sm font-medium mb-1">Goal Hours (Annual)</label>
-            <input 
-              type="number"
-              name="goal_hours"
-              min="1"max="2000"
-              defaultValue={settings.goal_hours}
-              className="w-full rounded-md border-stone-300 shadow-sm focus:border-slate-500   p-2.5 border text-sm"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Goal Hours (Annual)</label>
+              <input 
+                type="number"
+                name="goal_hours"
+                min="1"max="2000"
+                defaultValue={settings.goal_hours}
+                className="w-full rounded-md border-stone-300 shadow-sm focus:border-slate-500   p-2.5 border text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Hours per Credit</label>
+              <input 
+                type="number"
+                name="hours_per_credit"
+                min="1"max="1000"
+                defaultValue={settings.hours_per_credit}
+                className="w-full rounded-md border-stone-300 shadow-sm focus:border-slate-500   p-2.5 border text-sm"
+              />
+            </div>
           </div>
 
           <button type="submit"className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-md font-medium transition-colors">
@@ -113,6 +125,26 @@ export default async function AccountSettingsPage() {
               Clear All Test Data
             </button>
           </form>
+
+          <div className="pt-4 border-t border-red-200">
+            <p className="text-sm text-stone-500 mb-4">
+              Need to clear out media? This will permanently delete <strong>all media attachments and portfolio samples</strong>.
+            </p>
+            <form 
+              action={async () => {
+                'use server'
+                const { clearPortfolioData } = await import('./actions')
+                await clearPortfolioData()
+              }}
+            >
+              <button 
+                type="submit"
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md font-medium transition-colors"
+              >
+                Clear All Portfolio & Media Data
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     </div>

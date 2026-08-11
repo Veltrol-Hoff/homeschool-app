@@ -3,8 +3,9 @@
 import { useState, useEffect } from'react'
 import { useRouter, useSearchParams, usePathname } from'next/navigation'
 import * as LucideIcons from'lucide-react'
-import { createClient } from'@/utils/supabase/client'
-import { addTripMedia, deleteTrip } from'@/app/calendar/actions'
+import { createClient } from '@/utils/supabase/client'
+import { addTripMedia, deleteTrip } from '@/app/calendar/actions'
+import MediaUpload from '@/components/MediaUpload'
 
 export default function TripDetailModal({ 
   tripId,
@@ -26,13 +27,25 @@ export default function TripDetailModal({
   const [mediaNote, setMediaNote] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  async function fetchMedia() {
+    const supabase = createClient()
+    const { data: mediaData } = await supabase.from('media_attachments')
+      .select('*')
+      .eq('trip_id', tripId)
+      .order('created_at', { ascending: false })
+      
+    if (mediaData) {
+      setArtifacts(mediaData)
+    }
+  }
+
   useEffect(() => {
     async function fetchTrip() {
       setIsLoading(true)
       const supabase = createClient()
       
       const { data: tripData } = await supabase.from('trips')
-        .select('*, subjects(name)')
+        .select('*, trip_subjects(subjects(name))')
         .eq('id', tripId)
         .single()
         
@@ -40,14 +53,7 @@ export default function TripDetailModal({
         setTrip(tripData)
       }
       
-      const { data: mediaData } = await supabase.from('media_attachments')
-        .select('*')
-        .eq('trip_id', tripId)
-        .order('created_at', { ascending: false })
-        
-      if (mediaData) {
-        setArtifacts(mediaData)
-      }
+      await fetchMedia()
       
       setIsLoading(false)
     }
@@ -150,11 +156,11 @@ export default function TripDetailModal({
         <div className="p-6 overflow-y-auto flex-1 bg-stone-50/30">
           {activeTab ==='Details'&& (
             <div className="space-y-4">
-              {trip.subjects?.name && (
+              {trip.trip_subjects && trip.trip_subjects.length > 0 && (
                 <div>
-                  <label className="block text-sm font-medium text-stone-500 mb-1">Subject Link</label>
-                  <div className="p-3 bg-white  rounded-lg border border-stone-200  font-medium">
-                    {trip.subjects.name}
+                  <label className="block text-sm font-medium text-stone-500 mb-1">Subjects</label>
+                  <div className="p-3 bg-white rounded-lg border border-stone-200 font-medium">
+                    {trip.trip_subjects.map((ts: any) => ts.subjects.name).join(', ')}
                   </div>
                 </div>
               )}
@@ -164,6 +170,14 @@ export default function TripDetailModal({
                   <div className="p-3 bg-white  rounded-lg border border-stone-200  flex items-center gap-2">
                     <LucideIcons.MapPin size={16} className="text-stone-400"/>
                     {trip.location}
+                  </div>
+                </div>
+              )}
+              {trip.theme && (
+                <div>
+                  <label className="block text-sm font-medium text-stone-500 mb-1">Theme</label>
+                  <div className="p-3 bg-white rounded-lg border border-stone-200">
+                    {trip.theme}
                   </div>
                 </div>
               )}
@@ -207,55 +221,7 @@ export default function TripDetailModal({
 
           {activeTab ==='Portfolio'&& (
             <div className="space-y-6">
-              <div className="bg-white  p-4 rounded-xl border border-stone-100  shadow-sm">
-                <h4 className="font-bold text-sm mb-3">Add Trip Media</h4>
-                <form onSubmit={handleAddMedia} className="flex gap-2">
-                  <input 
-                    type="url"
-                    placeholder="https://example.com/image.jpg"
-                    value={mediaUrl}
-                    onChange={e => setMediaUrl(e.target.value)}
-                    required
-                    className="flex-1 rounded-md border-stone-300 shadow-sm p-2 text-sm   focus:border-slate-500"
-                  />
-                  <button 
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="bg-stone-900  text-white px-4 py-2 rounded-md text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
-                  >
-                    <LucideIcons.Upload size={16} /> Add Link
-                  </button>
-                </form>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {artifacts.map(art => {
-                  const isImage = art.file_url.match(/\.(jpeg|jpg|gif|png|webp)$/i)
-                  return (
-                    <div key={art.id} className="group relative aspect-square bg-stone-200  rounded-lg overflow-hidden border border-stone-200  shadow-sm cursor-pointer hover:ring-2 hover:ring-slate-500 transition-all">
-                      {isImage ? (
-                        <a href={art.file_url} target="_blank"rel="noopener noreferrer">
-                          <img src={art.file_url} alt="Artifact"className="w-full h-full object-cover"/>
-                        </a>
-                      ) : (
-                        <a href={art.file_url} target="_blank"rel="noopener noreferrer"className="w-full h-full flex flex-col items-center justify-center p-4 text-center hover:bg-stone-100">
-                          <LucideIcons.FileText size={32} className="text-stone-400 mb-2"/>
-                          <span className="text-xs font-medium text-stone-600  break-all line-clamp-2">
-                            {art.file_url}
-                          </span>
-                        </a>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-              
-              {artifacts.length === 0 && (
-                <div className="text-center py-8 text-stone-500 border-2 border-dashed border-stone-200  rounded-xl">
-                  <LucideIcons.Camera size={32} className="mx-auto text-stone-300 mb-2"/>
-                  <p>No photos or media added to this trip yet.</p>
-                </div>
-              )}
+              <MediaUpload tripId={tripId} existingMedia={artifacts} onUpdate={fetchMedia} />
             </div>
           )}
         </div>

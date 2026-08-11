@@ -9,13 +9,15 @@ export default function Navigation({ children, students = [], userRole }: { chil
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
 
-  if (pathname ==='/login') {
+  if (pathname === '/login' || pathname === '/forgot-password' || pathname === '/update-password') {
     return <>{children}</>
   }
 
   const mainLinks = [
     { href:'/dashboard', label:'Dashboard', icon: <LucideIcons.LayoutDashboard size={20} /> },
+    { href:'/review', label:'Review Queue', icon: <LucideIcons.Inbox size={20} /> },
     { href:'/calendar', label:'Calendar', icon: <LucideIcons.CalendarDays size={20} /> },
+    { href:'/trips', label:'Trips & Vacations', icon: <LucideIcons.Plane size={20} /> },
     { href:'/transcripts', label:'Transcripts', icon: <LucideIcons.GraduationCap size={20} /> },
     { href:'/export', label:'Portfolio', icon: <LucideIcons.FileText size={20} /> },
   ]
@@ -33,9 +35,9 @@ export default function Navigation({ children, students = [], userRole }: { chil
   return (
     <div className="flex h-screen bg-[#F7F3E7]">
       {/* Mobile nav header */}
-      <div className="md:hidden fixed top-0 left-0 right-0 h-20 bg-[#F7F3E7] border-b border-stone-200  flex items-center justify-between px-4 z-40">
+      <div className="md:hidden fixed top-0 left-0 right-0 h-20 bg-[#F7F3E7] border-b border-stone-200 flex items-center justify-between px-4 z-40">
         <div className="flex items-center gap-2 h-full py-2">
-          <img src="/logo.png"alt="Logo"className="h-full w-auto max-w-[200px] object-contain"/>
+          <span className="font-bold text-lg text-stone-800">Hoffmann Homeschool</span>
         </div>
         <button onClick={() => setIsOpen(!isOpen)} className="p-2 text-stone-600">
           {isOpen ? <LucideIcons.X size={28} /> : <LucideIcons.Menu size={28} />}
@@ -43,10 +45,10 @@ export default function Navigation({ children, students = [], userRole }: { chil
       </div>
 
       {/* Sidebar */}
-      <div className={`fixed md:static inset-y-0 left-0 w-72 bg-[#F7F3E7] border-r border-stone-200  z-30 transition-transform duration-300 ease-in-out ${isOpen ?'translate-x-0':'-translate-x-full md:translate-x-0'}`}>
-        <div className="flex flex-col h-full">
-          <div className="h-64 hidden md:flex items-center justify-center p-4 border-b border-stone-200  bg-[#F7F3E7]">
-            <img src="/logo.png"alt="Logo"className="w-full h-full object-contain"/>
+      <div className={`fixed md:static inset-y-0 left-0 w-72 bg-[#F7F3E7] border-r border-stone-200 z-30 transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+        <div className="flex flex-col h-full pt-20 md:pt-0">
+          <div className="h-48 hidden md:flex items-center justify-center p-4 border-b border-stone-200 bg-[#F7F3E7]">
+            <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
           </div>
           
           <nav className="flex-1 overflow-y-auto p-4 space-y-6">

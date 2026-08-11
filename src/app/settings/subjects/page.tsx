@@ -70,9 +70,16 @@ export default async function SubjectsSettingsPage() {
                           </div>
                           <div>
                             <p className="font-bold">{subject.name}</p>
-                            <p className="text-xs text-stone-500">
-                              {subject.is_state_required ?'State Required (Tracks 875hrs)':'Elective'}
-                            </p>
+                            <div className="flex gap-2 items-center mt-1">
+                              <p className="text-xs text-stone-500">
+                                {subject.is_state_required ? 'State Required' : 'Elective'}
+                              </p>
+                              {subject.is_family_subject && (
+                                <span className="bg-purple-100 text-purple-700 text-[10px] uppercase font-bold tracking-wide px-1.5 py-0.5 rounded">
+                                  Family Subject
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                         

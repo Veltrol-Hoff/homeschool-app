@@ -4,6 +4,7 @@ import { useState } from'react'
 import { createClient } from'@/utils/supabase/client'
 import EditPasswordModal from '@/components/EditPasswordModal'
 import InviteForm from '@/components/InviteForm'
+import { deleteUserAction } from './actions'
 
 export default function AccountManager({ profiles, currentUserId, students }: { profiles: any[], currentUserId: string, students: any[] }) {
   const currentUserProfile = profiles.find(p => p.id === currentUserId)
@@ -44,6 +45,19 @@ export default function AccountManager({ profiles, currentUserId, students }: { 
       setEditingUserId(null)
       window.location.reload()
     }, 1500)
+  }
+
+  async function handleDeleteUser(id: string, name: string) {
+    if (!confirm(`Are you sure you want to permanently remove ${name}? This action cannot be undone and will delete all their personal data.`)) {
+      return
+    }
+
+    try {
+      await deleteUserAction(id)
+      window.location.reload()
+    } catch (err: any) {
+      alert(err.message)
+    }
   }
 
   return (
@@ -129,6 +143,9 @@ export default function AccountManager({ profiles, currentUserId, students }: { 
                 <div className="flex items-center gap-4">
                   {(isOwner || profile.id === currentUserId) && (
                     <EditPasswordModal userId={profile.id} userEmail={profile.display_name || 'User'} />
+                  )}
+                  {isOwner && profile.id !== currentUserId && (
+                    <button onClick={() => handleDeleteUser(profile.id, profile.display_name || 'User')} className="text-red-600 hover:underline text-sm font-medium">Remove Member</button>
                   )}
                   <button onClick={() => { setEditingUserId(profile.id); setPassword(''); setPasswordConfirm(''); setStatus(''); }} className="text-slate-600 hover:underline text-sm font-medium">Edit Profile</button>
                 </div>

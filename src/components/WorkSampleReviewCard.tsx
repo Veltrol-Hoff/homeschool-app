@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from'react'
-import { confirmWorkSample } from'@/app/review/actions'
+import { useState } from 'react'
+import { confirmWorkSample } from '@/app/review/actions'
+import * as LucideIcons from 'lucide-react'
 
 export default function WorkSampleReviewCard({ sample }: { sample: any }) {
   const [feedback, setFeedback] = useState(sample.ai_feedback ||'')
@@ -19,10 +20,15 @@ export default function WorkSampleReviewCard({ sample }: { sample: any }) {
     }
   }
 
-  const scores = ['Not Yet','Emerging','Demonstrated','Mastered']
+  const scores = ['Not Yet', 'Emerging', 'Demonstrated', 'Mastered']
+  
+  const pacingType = sample.daily_logs?.curriculum_items?.curricula?.pacing_type
+  const isMasteryPaced = pacingType === 'mastery' || pacingType === 'mastery_paced'
+  const isLowScore = score === 'Needs Practice' || score === 'Emerging' || score === 'Not Yet'
+  const willShiftSchedule = isMasteryPaced && isLowScore
 
   return (
-    <div className="bg-white  rounded-xl shadow-sm border border-stone-100  overflow-hidden flex flex-col md:flex-row">
+    <div className="bg-white rounded-xl shadow-sm border border-stone-100 overflow-hidden flex flex-col md:flex-row">
       <div className="md:w-1/3 bg-stone-100  flex items-center justify-center p-4">
         {/* We use standard img here instead of next/image since URLs are dynamic from supabase bucket */}
         <img src={sample.image_url} alt="Work sample"className="max-h-64 object-contain rounded-md shadow-sm"/>
@@ -69,6 +75,15 @@ export default function WorkSampleReviewCard({ sample }: { sample: any }) {
                 ))}
               </div>
             </div>
+            
+            {willShiftSchedule && (
+              <div className="bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded-md flex gap-2 text-sm">
+                <LucideIcons.AlertTriangle className="w-5 h-5 flex-shrink-0 text-amber-600" />
+                <div>
+                  <strong>Schedule Shift Warning:</strong> Confirming this low score for a Mastery-Paced curriculum will automatically insert a Review Day tomorrow and push back all future planned lessons by one day.
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

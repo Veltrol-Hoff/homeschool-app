@@ -20,6 +20,7 @@ interface Curriculum {
   pacing_type: string
   delivery_mode: string
   course_name: string | null
+  status: string
   student_curricula?: { student_id: string }[]
 }
 
@@ -180,6 +181,20 @@ export default function EditCurriculumModal({
                 <option value="mixed">Mixed</option>
               </select>
             </div>
+          </div>
+
+          <div>
+            <label htmlFor="status" className="block text-sm font-medium mb-1">Status</label>
+            <select 
+              id="status"
+              name="status"
+              required
+              defaultValue={curriculum.status || 'active'}
+              className="w-full rounded-md border-stone-300 shadow-sm focus:border-slate-500 focus:ring-slate-500 p-2.5 border"
+            >
+              <option value="active">Active</option>
+              <option value="archived">Archived</option>
+            </select>
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-stone-200">

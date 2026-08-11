@@ -255,7 +255,9 @@ export default function CalendarView({
                       {format(day,'d')}
                     </div>
                     
-                    <div className="space-y-1.5 mt-1">
+                    <div className="mt-1">
+                      {/* DESKTOP VIEW */}
+                      <div className="hidden sm:block space-y-1.5">
                       {dayHolidays.map((h: any, idx: number) => (
                         <div 
                           key={`holiday-${idx}`} 
@@ -364,6 +366,35 @@ export default function CalendarView({
                           </div>
                         )
                       })}
+                      </div>
+                      
+                      {/* MOBILE VIEW (Dots) */}
+                      <div className="sm:hidden flex flex-wrap gap-1 mt-1 pb-2">
+                        {dayHolidays.map((h: any, idx: number) => (
+                          <div key={`mob-h-${idx}`} className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: '#EF4444' }} title={h.name} />
+                        ))}
+                        {dayTrips.map((t, idx) => (
+                          <div key={`mob-t-${idx}`} className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: t.display_color || '#F59E0B' }} title={t.title} />
+                        ))}
+                        {dayLogs.map((l, idx) => {
+                          const isCompleted = l.log_type === 'Completed'
+                          const studentColors = l.studentsInGroup.map((s: any) => s?.display_color || '#10B981')
+                          let bgStyle = studentColors[0]
+                          if (studentColors.length > 1) {
+                            const step = 100 / studentColors.length
+                            const stops = studentColors.map((c: string, i: number) => `${c} ${i * step}%, ${c} ${(i + 1) * step}%`).join(',')
+                            bgStyle = `linear-gradient(to bottom, ${stops})`
+                          }
+                          return (
+                            <div 
+                              key={`mob-l-${idx}`} 
+                              className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full shadow-sm ${isCompleted ? 'opacity-30' : 'opacity-100'}`} 
+                              style={{ background: bgStyle }} 
+                              title={l.subjects?.name || l.activities?.name} 
+                            />
+                          )
+                        })}
+                      </div>
                     </div>
                   </div>
                 )

@@ -92,6 +92,19 @@ export default function SubjectForm({
         </label>
       </div>
 
+      <div className="flex items-center gap-2">
+        <input 
+          type="checkbox"
+          id={`is_family_subject_${subject?.id ||'new'}`}
+          name="is_family_subject"
+          defaultChecked={subject ? subject.is_family_subject : false}
+          className="rounded border-stone-300 text-slate-600 focus:ring-slate-500 w-5 h-5"
+        />
+        <label htmlFor={`is_family_subject_${subject?.id ||'new'}`} className="text-sm font-medium">
+          Family Subject (Taught jointly)
+        </label>
+      </div>
+
       <div>
         <label className="block text-sm font-medium mb-2">Color</label>
         <div className="flex flex-wrap gap-2">

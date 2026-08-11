@@ -123,7 +123,6 @@ export default function TranscriptGenerator({
     doc.setFontSize(12)
     doc.setFont("helvetica","normal")
     doc.text(`Student Name: ${student.name}`, 14, currentY)
-    doc.text(`Date of Birth: ${format(new Date(student.birth_date),'MMMM d, yyyy')}`, 14, currentY + 7)
     
     doc.text(`School: Hoffmann Home School`, 120, currentY)
     doc.text(`Print Date: ${format(new Date(),'MMMM d, yyyy')}`, 120, currentY + 7)
@@ -194,7 +193,7 @@ export default function TranscriptGenerator({
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
           <h2 className="text-2xl font-bold text-stone-900">Academic Transcript</h2>
-          <p className="text-stone-500">{student.name} &bull; DOB: {format(new Date(student.birth_date),'MMM d, yyyy')}</p>
+          <p className="text-stone-500">{student.name}</p>
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto">
           <select

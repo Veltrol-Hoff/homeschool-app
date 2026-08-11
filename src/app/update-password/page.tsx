@@ -1,12 +1,57 @@
-import { updatePassword } from './actions'
+'use client'
 
-export default async function UpdatePasswordPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string }>
-}) {
-  const params = await searchParams
-  const errorMessage = params.error
+import { useState, useEffect } from 'react'
+import { createClient } from '@/utils/supabase/client'
+import { useRouter } from 'next/navigation'
+
+export default function UpdatePasswordPage() {
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [sessionChecked, setSessionChecked] = useState(false)
+  const supabase = createClient()
+  const router = useRouter()
+
+  useEffect(() => {
+    // When the component mounts, the Supabase browser client will automatically 
+    // parse the URL hash (e.g., #access_token=...) and establish the session.
+    // We just wait a brief moment to ensure the session is ready before showing the form.
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        // If there's still no session, the link is invalid or expired
+        setError("Invalid or expired recovery link. Please try resetting your password again.")
+      }
+      setSessionChecked(true)
+    }
+    checkSession()
+  }, [])
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+
+    const { error } = await supabase.auth.updateUser({
+      password: password
+    })
+
+    if (error) {
+      setError(error.message)
+      setLoading(false)
+    } else {
+      // Successfully updated!
+      router.push('/dashboard')
+    }
+  }
+
+  if (!sessionChecked) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#F7F3E7]">
+        <p className="text-stone-500">Verifying secure link...</p>
+      </div>
+    )
+  }
 
   return (
     <div className="flex min-h-screen flex-col justify-center bg-[#F7F3E7] py-12 sm:px-6 lg:px-8">
@@ -24,7 +69,7 @@ export default async function UpdatePasswordPage({
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white px-4 py-8 shadow-xl sm:rounded-lg sm:px-10 border border-stone-100">
-          <form className="space-y-6">
+          <form className="space-y-6" onSubmit={handleUpdatePassword}>
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-stone-700">
                 New Password
@@ -37,23 +82,26 @@ export default async function UpdatePasswordPage({
                   autoComplete="new-password"
                   required
                   minLength={6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="appearance-none block w-full px-3 py-2 border border-stone-300 rounded-md shadow-sm placeholder-stone-400 focus:outline-none focus:ring-slate-500 focus:border-slate-500 sm:text-sm"
                 />
               </div>
             </div>
 
-            {errorMessage && (
+            {error && (
               <div className="rounded-md bg-red-50 p-4 border border-red-100">
-                <h3 className="text-sm font-medium text-red-800">{errorMessage}</h3>
+                <h3 className="text-sm font-medium text-red-800">{error}</h3>
               </div>
             )}
 
             <div>
               <button
-                formAction={updatePassword}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-slate-600 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 transition-colors"
+                type="submit"
+                disabled={loading || !!error && error.includes('Invalid')}
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-slate-600 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 transition-colors disabled:opacity-50"
               >
-                Update Password
+                {loading ? 'Updating...' : 'Update Password'}
               </button>
             </div>
           </form>

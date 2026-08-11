@@ -2,8 +2,9 @@ import { createClient } from'@/utils/supabase/server'
 import { redirect } from'next/navigation'
 import Link from'next/link'
 import RewardBadge from'./RewardBadge'
-import { Trophy, Star, Target, ShieldCheck, Clock, CheckCircle } from'lucide-react'
-import { format } from'date-fns'
+import { Trophy, Star, Target, ShieldCheck, Clock, CheckCircle, BookOpen } from 'lucide-react'
+import { format } from 'date-fns'
+import AudioRecorder from '@/components/AudioRecorder'
 
 export default async function StudentDashboardPage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient()
@@ -64,20 +65,25 @@ export default async function StudentDashboardPage({ params }: { params: Promise
   const validTrips = (tripStudents || []).map(ts => ts.trips as any).filter(t => t && new Date(t.start_date as string) >= schoolYearStartDate)
   const tripHours = validTrips.reduce((sum, trip) => sum + (trip.hours_credited || 0), 0)
 
-  // Fetch logs for hours calculation
-  let totalHours = tripHours
+  let totalHours = 0
   let totalMinutes = 0
+  let todaysCompletedLogs = []
+  
   if (currentYear) {
     const { data: logs } = await supabase
       .from('daily_logs')
-      .select('duration_minutes, log_type')
+      .select('id, duration_minutes, log_type, date, subjects(name)')
       .eq('student_id', id)
       .eq('academic_year_id', currentYear.id)
       
     if (logs) {
-      const completedLogs = logs.filter(log => log.log_type ==='Completed')
+      // Exclude 'Planned' to include 'Completed', 'Field Trip', 'Spontaneous', etc.
+      const completedLogs = logs.filter(log => log.log_type !== 'Planned')
       totalMinutes = completedLogs.reduce((sum, log) => sum + log.duration_minutes, 0)
-      totalHours = Math.floor(totalMinutes / 60) + tripHours
+      totalHours = Math.floor(totalMinutes / 60)
+      
+      const todayStr = format(now, 'yyyy-MM-dd')
+      todaysCompletedLogs = completedLogs.filter(log => log.date === todayStr)
     }
   }
   let percentComplete = Math.round((totalHours / GOAL_HOURS) * 100)
@@ -128,6 +134,13 @@ export default async function StudentDashboardPage({ params }: { params: Promise
                 </span>
               )}
             </h1>
+            <Link 
+              href="/portfolio"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-yellow-950 font-bold rounded-lg shadow-sm transition-colors mt-4"
+            >
+              <Star className="w-5 h-5 fill-yellow-950" />
+              View Portfolio
+            </Link>
           </div>
           
           <div className="flex items-center gap-4 bg-white/80  p-4 rounded-3xl shadow-sm border border-stone-100  backdrop-blur-sm">
@@ -208,6 +221,28 @@ export default async function StudentDashboardPage({ params }: { params: Promise
                   <p className="font-bold text-stone-500  flex items-center gap-2"><Clock size={18} /> Hours Hidden</p>
                 </div>
               )}
+
+              {/* Today's Lessons & Narration */}
+              <div className="bg-stone-50 border border-stone-200 p-5 rounded-xl">
+                <p className="font-bold text-stone-900 flex items-center gap-1.5 mb-4">
+                  <BookOpen size={18} className="text-stone-500"/> Today's Completed Lessons
+                </p>
+                {todaysCompletedLogs.length === 0 ? (
+                  <p className="text-sm text-stone-500 italic">No lessons completed today yet.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {todaysCompletedLogs.map((log: any) => (
+                      <div key={log.id} className="bg-white p-4 rounded-xl border border-stone-100 shadow-sm">
+                        <div className="flex justify-between items-center mb-3">
+                          <span className="font-bold text-sm text-stone-700">{log.subjects?.name || 'General Activity'}</span>
+                          <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">Completed</span>
+                        </div>
+                        <AudioRecorder logId={log.id} studentId={id} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               {/* Grades / Recent Work Widget */}
               {student.can_view_grades ? (

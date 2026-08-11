@@ -18,7 +18,8 @@ export default function TranscriptClient({
   subjects,
   logs,
   workSamples,
-  initialTranscripts
+  initialTranscripts,
+  hoursPerCredit
 }: {
   students: Student[]
   academicYears: AcademicYear[]
@@ -26,6 +27,7 @@ export default function TranscriptClient({
   logs: Log[]
   workSamples: WorkSample[]
   initialTranscripts: Transcript[]
+  hoursPerCredit: number
 }) {
   const [selectedStudentId, setSelectedStudentId] = useState(students[0]?.id || '')
   
@@ -69,8 +71,8 @@ export default function TranscriptClient({
     const totalMinutes = subjectLogs.reduce((acc, l) => acc + l.duration_minutes, 0)
     const totalHours = totalMinutes / 60
     
-    // Suggest 1 credit per 120 hours, half-credit intervals
-    let suggestedCredits = Math.round(totalHours / 120 * 2) / 2
+    // Suggest 1 credit per configured hours, half-credit intervals
+    let suggestedCredits = Math.round((totalHours / hoursPerCredit) * 2) / 2
     if (suggestedCredits > 1.0) suggestedCredits = 1.0 // cap at 1 credit for standard course
     
     // Suggest grade based on work samples
@@ -279,7 +281,7 @@ export default function TranscriptClient({
                 <span className="text-xl">✏️</span> Draft Projections (Not on Transcript)
               </h2>
               <p className="text-sm text-stone-500 mt-1">
-                These are "what-if" calculations based on logged hours (approx. 120 hrs = 1 credit). Review, edit, and click Finalize to add them to the official record.
+                These are "what-if" calculations based on logged hours (approx. {hoursPerCredit} hrs = 1 credit). Review, edit, and click Finalize to add them to the official record.
               </p>
             </div>
 

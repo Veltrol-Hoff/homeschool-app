@@ -50,11 +50,11 @@ export async function scheduleCurriculum(curriculumId: string, formData: FormDat
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error("Unauthorized")
 
-  const student_id = formData.get('student_id') as string
+  const student_ids = formData.getAll('student_id') as string[]
   const start_date = formData.get('start_date') as string
   const days_of_week = formData.getAll('days_of_week').map(d => parseInt(d as string, 10))
 
-  if (!student_id || !start_date || days_of_week.length === 0) {
+  if (student_ids.length === 0 || !start_date || days_of_week.length === 0) {
     throw new Error("Missing required scheduling fields")
   }
 
@@ -77,15 +77,16 @@ export async function scheduleCurriculum(curriculumId: string, formData: FormDat
     
   const holidayStrings = new Set((holidays || []).map(h => h.date))
 
-  // Fetch academic years for the student via mapping
+  // Fetch academic years for all selected students via mapping
   const { data: mappings } = await supabase
     .from('student_academic_years')
-    .select('academic_year_id, academic_years(start_date, end_date)')
-    .eq('student_id', student_id)
+    .select('student_id, academic_year_id, academic_years(start_date, end_date)')
+    .in('student_id', student_ids)
     
   const academicYears = mappings?.map(m => {
     const ay = m.academic_years as any;
     return {
+      student_id: m.student_id,
       id: m.academic_year_id,
       start_date: ay.start_date,
       end_date: ay.end_date
@@ -122,23 +123,28 @@ export async function scheduleCurriculum(curriculumId: string, formData: FormDat
     const dd = String(datePointer.getDate()).padStart(2, '0')
     const dateStr = `${yyyy}-${mm}-${dd}`
 
-    const yearMatch = academicYears?.find(y => dateStr >= y.start_date && dateStr <= y.end_date)
-    
-    if (!yearMatch) {
-      throw new Error(`Cannot schedule item on ${dateStr}: No academic year covers this date for this student.`)
-    }
+    const shared_activity_group_id = student_ids.length > 1 ? crypto.randomUUID() : null
 
-    logsToInsert.push({
-      student_id,
-      academic_year_id: yearMatch.id,
-      date: dateStr,
-      log_type: 'Planned',
-      duration_minutes: item.estimated_minutes || 30,
-      subject_id: null, // We'll look up the curriculum subject id later
-      notes: `Scheduled: ${item.title}`,
-      pending_parent_approval: false, // Auto-approved since parent scheduled it
-      curriculum_item_id: item.id
-    })
+    for (const sid of student_ids) {
+      const yearMatch = academicYears?.find(y => y.student_id === sid && dateStr >= y.start_date && dateStr <= y.end_date)
+      
+      if (!yearMatch) {
+        throw new Error(`Cannot schedule item on ${dateStr}: No academic year covers this date for student ID ${sid}.`)
+      }
+
+      logsToInsert.push({
+        student_id: sid,
+        academic_year_id: yearMatch.id,
+        date: dateStr,
+        log_type: 'Planned',
+        duration_minutes: item.estimated_minutes || 30,
+        subject_id: null, // We'll look up the curriculum subject id later
+        notes: `Scheduled: ${item.title}`,
+        pending_parent_approval: false, // Auto-approved since parent scheduled it
+        curriculum_item_id: item.id,
+        shared_activity_group_id
+      })
+    }
     
     // Move to next day for the next item
     datePointer.setDate(datePointer.getDate() + 1)
@@ -176,15 +182,16 @@ export async function updateCurriculum(curriculumId: string, formData: FormData)
   const pacing_type = formData.get('pacing_type') as string
   const delivery_mode = formData.get('delivery_mode') as string
   const course_name = (formData.get('course_name') as string) || null
+  const status = formData.get('status') as string
   const student_ids = formData.getAll('student_id') as string[]
 
-  if (!title || !subject_id || !pacing_type || !delivery_mode || student_ids.length === 0) {
+  if (!title || !subject_id || !pacing_type || !delivery_mode || !status || student_ids.length === 0) {
     throw new Error("All fields and at least one student are required")
   }
 
   // Update curriculum details
   const { error: currError } = await supabase.from('curricula').update({
-    title, subject_id, pacing_type, delivery_mode, course_name
+    title, subject_id, pacing_type, delivery_mode, course_name, status
   }).eq('id', curriculumId)
 
   if (currError) {

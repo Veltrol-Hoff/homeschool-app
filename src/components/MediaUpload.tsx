@@ -7,11 +7,13 @@ import { addMediaAttachment, togglePortfolioSample } from'@/app/actions/media'
 export default function MediaUpload({ 
   logId, 
   tripId, 
-  existingMedia = [] 
+  existingMedia = [],
+  onUpdate
 }: { 
   logId?: string, 
   tripId?: string, 
-  existingMedia?: any[] 
+  existingMedia?: any[],
+  onUpdate?: () => void
 }) {
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -39,6 +41,7 @@ export default function MediaUpload({
       const { data } = supabase.storage.from('media').getPublicUrl(filePath)
       
       await addMediaAttachment(data.publicUrl, logId, tripId)
+      if (onUpdate) onUpdate()
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -61,7 +64,14 @@ export default function MediaUpload({
               <img src={media.file_url} alt="Attached media"className="object-cover w-full h-full"/>
               
               <button 
-                onClick={() => togglePortfolioSample(media.id, media.is_portfolio_sample)}
+                onClick={async () => {
+                  try {
+                    await togglePortfolioSample(media.id, media.is_portfolio_sample)
+                    if (onUpdate) onUpdate()
+                  } catch (e) {
+                    console.error("Failed to toggle", e)
+                  }
+                }}
                 className="absolute top-2 right-2 p-1.5 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
                 title={media.is_portfolio_sample ?"Remove from portfolio":"Add to portfolio"}
               >

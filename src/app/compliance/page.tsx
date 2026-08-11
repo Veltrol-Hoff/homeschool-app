@@ -4,6 +4,7 @@ import Link from 'next/link'
 import ComplianceExportAllButton from '@/components/ComplianceExportAllButton'
 import PacingRadar from '@/components/PacingRadar'
 import SubjectPieChart from '@/components/SubjectPieChart'
+import StandardsGapDashboard from '@/components/StandardsGapDashboard'
 import fs from 'fs'
 
 const WI_REQUIRED_SUBJECTS = [
@@ -23,6 +24,7 @@ export default async function CompliancePage() {
   // Fetch data
   const { data: students } = await supabase.from('students').select('*').order('birth_date', { ascending: false })
   const { data: academicYears } = await supabase.from('academic_years').select('*')
+  const { data: studentYears } = await supabase.from('student_academic_years').select('*')
   const { data: subjects } = await supabase.from('subjects').select('*')
   const { data: logs } = await supabase.from('daily_logs').select('*')
   
@@ -68,11 +70,19 @@ export default async function CompliancePage() {
   }
 
   const reports = students.map(student => {
-    const currentYear = academicYears?.find(ay => ay.student_id === student.id)
+    const currentMapping = studentYears?.find(sy => sy.student_id === student.id)
+    let currentYear = null
+    if (currentMapping) {
+      const ay = academicYears?.find(y => y.id === currentMapping.academic_year_id)
+      if (ay) {
+        currentYear = { ...ay, grade_level: currentMapping.grade_level, year_label: ay.name }
+      }
+    }
     
     // Filter logs strictly by compliance dates, completely decoupled from academic_year_id
     const studentLogs = logs?.filter(log => {
       if (log.student_id !== student.id) return false
+      if (log.log_type === 'Planned') return false // Only count actual time logged
       const logDate = new Date(log.date)
       return logDate >= complianceYearStart && logDate <= complianceYearEnd
     }) || []
@@ -84,17 +94,15 @@ export default async function CompliancePage() {
     // Calculate stats per subject
     const subjectStats = subjects?.map(sub => {
       const subLogs = studentLogs.filter(l => l.subject_id === sub.id)
-      const subTrips = validTrips.filter(t => t.subject_id === sub.id)
       
       const totalMinutes = subLogs.reduce((acc, l) => acc + l.duration_minutes, 0)
-      const tripHours = subTrips.reduce((acc, t) => acc + (t.hours_credited || 0), 0)
       
       return {
         id: sub.id,
         name: sub.name,
         is_state_required: sub.is_state_required,
-        totalHours: Math.floor(totalMinutes / 60) + tripHours,
-        logCount: subLogs.length + subTrips.length
+        totalHours: Math.floor(totalMinutes / 60),
+        logCount: subLogs.length
       }
     }) || []
 
@@ -264,38 +272,12 @@ export default async function CompliancePage() {
             </div>
 
             {/* Standards Coverage Section */}
-            <div className="mt-8 pt-6 border-t border-stone-100">
-              <h3 className="font-semibold text-lg mb-4 text-stone-700">
-                Standards Coverage (Grade {report.currentYear?.grade_level})
-              </h3>
-              
-              {report.standardsCoverage.length === 0 ? (
-                <p className="text-stone-500 text-sm">No standards defined for this grade level.</p>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {report.standardsCoverage.map((std: any) => (
-                    <div key={std.id} className="flex items-start gap-3 p-3 bg-stone-50 rounded-lg border border-stone-100">
-                      <div className={`w-5 h-5 mt-0.5 rounded flex items-center justify-center text-xs flex-shrink-0 ${std.isCovered ?'bg-purple-100 text-purple-700 border border-purple-200':'bg-stone-200 text-transparent border border-stone-300'}`}>
-                        {std.isCovered ?'✓':''}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-start gap-2">
-                          <span className="font-semibold text-sm text-stone-900">{std.code}</span>
-                          {std.isCovered && (
-                            <span className="text-[10px] uppercase font-bold tracking-wide bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">
-                              {std.lessonCount} {std.lessonCount === 1 ?'lesson':'lessons'}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-stone-600 mt-1 line-clamp-2"title={std.short_description}>
-                          {std.short_description}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <StandardsGapDashboard 
+              gradeLevel={report.currentYear?.grade_level || '1'}
+              standardsCoverage={report.standardsCoverage}
+              complianceYearStart={complianceYearStart}
+              complianceYearEnd={complianceYearEnd}
+            />
           </div>
         ))}
       </div>

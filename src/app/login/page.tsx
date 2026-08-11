@@ -51,9 +51,9 @@ export default async function LoginPage({
                   Password
                 </label>
                 <div className="text-sm">
-                  <Link href="/forgot-password"className="font-medium text-slate-600 hover:text-slate-500">
+                  <a href="/forgot-password" className="font-medium text-slate-600 hover:text-slate-500">
                     Forgot your password?
-                  </Link>
+                  </a>
                 </div>
               </div>
               <div className="mt-1">

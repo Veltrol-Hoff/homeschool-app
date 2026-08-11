@@ -10,13 +10,20 @@ export default async function CurriculumLibraryPage({ searchParams }: { searchPa
   if (!user) return redirect('/login')
 
   const sp = await searchParams
-  const activeTab = sp.tab ||'curricula'
+  const activeTab = sp.tab || 'curricula'
+  const filterStatus = sp.status || 'active'
 
   // Fetch curricula
-  const { data: curricula } = await supabase
+  let query = supabase
     .from('curricula')
     .select('*, subjects(name), student_curricula(student_id)')
     .order('created_at', { ascending: false })
+    
+  if (activeTab === 'curricula') {
+    query = query.eq('status', filterStatus)
+  }
+  
+  const { data: curricula } = await query
 
   // Fetch items to count them per curriculum (simplest way for MVP)
   const { data: items } = await supabase
@@ -92,9 +99,26 @@ export default async function CurriculumLibraryPage({ searchParams }: { searchPa
               </div>
             ) : (
               <>
+                <div className="flex justify-end mb-4">
+                  <div className="flex bg-stone-100 rounded-md p-1">
+                    <Link 
+                      href="/curriculum?tab=curricula&status=active"
+                      className={`px-3 py-1 text-sm rounded-sm font-medium ${filterStatus === 'active' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
+                    >
+                      Active
+                    </Link>
+                    <Link 
+                      href="/curriculum?tab=curricula&status=archived"
+                      className={`px-3 py-1 text-sm rounded-sm font-medium ${filterStatus === 'archived' ? 'bg-white shadow-sm text-stone-900' : 'text-stone-500 hover:text-stone-700'}`}
+                    >
+                      Archived
+                    </Link>
+                  </div>
+                </div>
+
                 {!curricula || curricula.length === 0 ? (
                   <div className="text-center py-12">
-                    <p className="text-stone-500  mb-4">No curricula in your library yet.</p>
+                    <p className="text-stone-500  mb-4">No {filterStatus} curricula in your library yet.</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 gap-4">
