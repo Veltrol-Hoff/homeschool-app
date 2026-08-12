@@ -1,13 +1,10 @@
 'use server'
 
-import { createClient } from'@/utils/supabase/server'
+import { requireAuth } from'@/utils/supabase/server'
 import { revalidatePath } from'next/cache'
 
 export async function addMediaAttachment(url: string, logId?: string, tripId?: string) {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error("Unauthorized")
+  const { supabase } = await requireAuth()
 
   const { error } = await supabase.from('media_attachments').insert([{
     file_url: url,
@@ -27,10 +24,7 @@ export async function addMediaAttachment(url: string, logId?: string, tripId?: s
 }
 
 export async function togglePortfolioSample(mediaId: string, currentState: boolean) {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error("Unauthorized")
+  const { supabase } = await requireAuth()
 
   const { error } = await supabase.from('media_attachments')
     .update({ is_portfolio_sample: !currentState })
@@ -47,10 +41,7 @@ export async function togglePortfolioSample(mediaId: string, currentState: boole
 }
 
 export async function deleteMediaAttachment(mediaId: string, fileUrl: string) {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error("Unauthorized")
+  const { supabase } = await requireAuth()
 
   // Extract filename from the end of the URL
   const urlParts = fileUrl.split('/')

@@ -1,12 +1,12 @@
 'use server'
 
-import { createClient } from'@/utils/supabase/server'
+import { requireAuth } from'@/utils/supabase/server'
 import { revalidatePath } from'next/cache'
 import { getNextValidSchoolDay, Holiday, Trip } from'@/utils/dateMath'
 import { parseISO, format, addDays, addWeeks, addMonths } from'date-fns'
 
 export async function bumpDay(studentId: string, targetDateStr: string) {
-  const supabase = await createClient()
+  const { supabase } = await requireAuth()
 
   // 1. Fetch holidays
   const { data: holidays } = await supabase.from('holidays').select('*')
@@ -121,7 +121,7 @@ export async function createActivity(data: {
   recurringRule?: string,
   recurringCount?: number
 }) {
-  const supabase = await createClient()
+  const { supabase } = await requireAuth()
   
   // Get active academic year
   const { data: year } = await supabase.from('academic_years').select('id').eq('is_active', true).single()
@@ -195,7 +195,7 @@ export async function createActivity(data: {
 }
 
 export async function updateActivity(id: string, data: { type:'Course'|'Activity', subject_id?: string, activity_id?: string, notes?: string, date: string, time?: string, duration_minutes?: number, file_url?: string, students?: string[] }) {
-  const supabase = await createClient()
+  const { supabase } = await requireAuth()
   
   if (data.students && data.students.length === 0) {
     return deleteActivity(id)
@@ -266,7 +266,7 @@ export async function updateActivity(id: string, data: { type:'Course'|'Activity
 }
 
 export async function deleteActivity(id: string) {
-  const supabase = await createClient()
+  const { supabase } = await requireAuth()
   const { data: log } = await supabase.from('daily_logs').select('shared_activity_group_id').eq('id', id).single()
   
   if (log?.shared_activity_group_id) {
@@ -284,7 +284,7 @@ export async function deleteActivity(id: string) {
 }
 
 export async function toggleLogCompletion(id: string, isCompleted: boolean, moveToToday: boolean = false) {
-  const supabase = await createClient()
+  const { supabase } = await requireAuth()
   
   // Fetch existing log to check original_date and shared group
   const { data: log } = await supabase.from('daily_logs').select('original_date, date, shared_activity_group_id').eq('id', id).single()
@@ -324,7 +324,7 @@ export async function toggleLogCompletion(id: string, isCompleted: boolean, move
 }
 
 export async function createTrip(data: { title: string, location: string, start_date: string, end_date: string, hours_credited?: number, display_color: string, subject_ids?: string[], theme?: string, students: string[] }) {
-  const supabase = await createClient()
+  const { supabase } = await requireAuth()
   
   // Insert trip
   const { data: trip, error: tripError } = await supabase
@@ -421,7 +421,7 @@ export async function createTrip(data: { title: string, location: string, start_
 }
 
 export async function updateTrip(id: string, data: { title: string, location: string, start_date: string, end_date: string, hours_credited?: number, display_color: string, subject_ids?: string[], theme?: string, students: string[] }) {
-  const supabase = await createClient()
+  const { supabase } = await requireAuth()
   
   const { error: tripError } = await supabase
     .from('trips')
@@ -519,7 +519,7 @@ export async function updateTrip(id: string, data: { title: string, location: st
 }
 
 export async function deleteTrip(id: string) {
-  const supabase = await createClient()
+  const { supabase } = await requireAuth()
   const { error } = await supabase.from('trips').delete().eq('id', id)
   if (error) throw new Error(error.message)
     
@@ -530,7 +530,7 @@ export async function deleteTrip(id: string) {
 }
 
 export async function addTripMedia(tripId: string, url: string, note: string) {
-  const supabase = await createClient()
+  const { supabase } = await requireAuth()
   const { error } = await supabase.from('media_attachments').insert({
     trip_id: tripId,
     file_url: url,
@@ -545,7 +545,7 @@ export async function updateRecurringActivity(
   originalDate: string,
   data: { type: 'Course' | 'Activity', subject_id?: string, activity_id?: string, notes?: string, date: string, time?: string, duration_minutes?: number, file_url?: string, students?: string[] }
 ) {
-  const supabase = await createClient()
+  const { supabase } = await requireAuth()
   
   // 1. Fetch all future Planned logs in this group
   const { data: logs, error: fetchError } = await supabase

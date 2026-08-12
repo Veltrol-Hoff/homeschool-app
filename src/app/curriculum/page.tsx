@@ -4,7 +4,7 @@ import Link from'next/link'
 import AddCurriculumButton from'@/components/AddCurriculumButton'
 import EditCurriculumButton from'@/components/EditCurriculumButton'
 
-export default async function CurriculumLibraryPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+export default async function CurriculumLibraryPage({ searchParams }: { searchParams: Promise<{ tab?: string, status?: string }> }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return redirect('/login')
