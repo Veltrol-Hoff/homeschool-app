@@ -107,7 +107,7 @@ export default async function PortfolioPage({
       }
 
       const fallbackRes = await fallbackQuery
-      allSamples = fallbackRes.data
+      allSamples = fallbackRes.data as any
       error = fallbackRes.error
       
       if (error) {
@@ -146,7 +146,7 @@ export default async function PortfolioPage({
       }
       
       const safeRes = await safeQuery
-      allSamples = safeRes.data
+      allSamples = safeRes.data as any
     }
   }
 

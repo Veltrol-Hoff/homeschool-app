@@ -35,7 +35,7 @@ export default function BuckyMascot({ studentName }: { studentName: string }) {
         <p className="text-sm sm:text-base font-medium text-stone-700">{saying}</p>
         <div className="absolute top-1/2 -right-2 transform -translate-y-1/2 w-0 h-0 border-y-8 border-y-transparent border-l-8 border-l-stone-100"></div>
       </div>
-      <img src="/mascot.jpg" alt="Bucky the Mascot" className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover shadow-sm border-2 border-white"/>
+      <img src="/mascot_1.jpg" alt="Bucky the Mascot" className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover shadow-sm border-2 border-white"/>
     </div>
   )
 }

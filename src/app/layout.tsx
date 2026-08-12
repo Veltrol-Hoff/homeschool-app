@@ -31,8 +31,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Homeschool App",
-  description: "Homeschool Planner and Compliance App",
+  title: "Homeschool Planner",
+  description: "Manage your homeschool compliance, schedules, and portfolio.",
+  icons: {
+    icon: [
+      { url: '/mascot.jpg', type: 'image/jpeg' }
+    ],
+    apple: '/mascot.jpg',
+  }
 };
 
 export default async function RootLayout({
