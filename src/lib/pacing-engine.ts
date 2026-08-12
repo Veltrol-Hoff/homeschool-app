@@ -27,9 +27,9 @@ export async function adjustMasteryPacing(workSampleId: string) {
     .eq('id', workSampleId)
     .single()
 
-  if (!sample || !sample.daily_logs || !sample.daily_logs.curriculum_items) return
+  const log = sample?.daily_logs as any
+  if (!sample || !log || !log.curriculum_items) return
 
-  const log = sample.daily_logs
   const item = log.curriculum_items as any
   const curriculum = item.curricula
 
