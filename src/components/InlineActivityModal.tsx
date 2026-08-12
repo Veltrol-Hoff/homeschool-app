@@ -124,6 +124,7 @@ export default function InlineActivityModal({
         const subject_id = formData.get('subject_id') as string
         const activity_id = formData.get('activity_id') as string
         const duration_minutes = parseInt(formData.get('duration_minutes') as string) || 30
+        const is_starred = formData.get('is_starred') === 'on'
         
         let file_url = existingData?.file_url
         if (file) {
@@ -145,10 +146,10 @@ export default function InlineActivityModal({
             const { updateRecurringActivity } = await import('@/app/calendar/actions')
             await updateRecurringActivity(existingData.recurring_group_id, existingData.date, { type: activeTab, subject_id, activity_id, notes, date, time, duration_minutes, file_url, students: selectedStudents })
           } else {
-            await updateActivity(editId, { type: activeTab, subject_id, activity_id, notes, date, time, duration_minutes, file_url, students: selectedStudents })
+            await updateActivity(editId, { type: activeTab, subject_id, activity_id, notes, date, time, duration_minutes, file_url, students: selectedStudents, is_starred })
           }
         } else {
-          await createActivity({ type: activeTab, subject_id, activity_id, notes, date, time, duration_minutes, file_url, students: selectedStudents, recurringRule, recurringCount })
+          await createActivity({ type: activeTab, subject_id, activity_id, notes, date, time, duration_minutes, file_url, students: selectedStudents, recurringRule, recurringCount, is_starred })
         }
       }
       
@@ -250,13 +251,20 @@ export default function InlineActivityModal({
               </div>
             )}
             
-            {activeTab ==='Activity'&& (
+            {activeTab ==='Activity'&& existingData?.log_type !== 'Field Trip' && (
               <div>
                 <label className="block text-sm font-medium mb-1">Activity</label>
                 <select name="activity_id"defaultValue={existingData?.activity_id ||""} required className="w-full rounded-md border-stone-300 shadow-sm focus:border-slate-500   p-2 text-sm">
                   <option value="">Select an Activity...</option>
                   {activities.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </select>
+              </div>
+            )}
+            
+            {existingData?.log_type === 'Field Trip' && (
+              <div className="p-3 bg-blue-50 border border-blue-100 rounded-md text-sm text-blue-700 flex items-center gap-2">
+                <LucideIcons.Info size={16} />
+                This is a log for a Field Trip. 
               </div>
             )}
 
@@ -341,6 +349,19 @@ export default function InlineActivityModal({
                     <label className="block text-sm font-medium mb-1">Start Time (Optional)</label>
                     <input type="time"name="time"defaultValue={existingData?.time_of_day ||""} className="w-full rounded-md border-stone-300 shadow-sm focus:border-slate-500   p-2 text-sm"/>
                   </div>
+                </div>
+                
+                <div className="flex items-center gap-2 mt-4 p-3 rounded-md border border-amber-200 bg-amber-50">
+                  <input 
+                    type="checkbox" 
+                    id="is_starred" 
+                    name="is_starred" 
+                    defaultChecked={existingData?.is_starred || false}
+                    className="rounded border-amber-300 text-amber-500 focus:ring-amber-500 cursor-pointer" 
+                  />
+                  <label htmlFor="is_starred" className="text-sm font-medium text-amber-800 cursor-pointer flex items-center gap-2">
+                    <LucideIcons.Star size={16} className="fill-amber-500 text-amber-500" /> Highlight on Calendar
+                  </label>
                 </div>
                 {editId && existingData?.recurring_group_id && (
                   <div className="flex items-center gap-2 mt-2 bg-slate-50 p-3 rounded-md border border-slate-200">

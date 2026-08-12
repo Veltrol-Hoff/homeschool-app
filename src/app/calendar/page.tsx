@@ -22,7 +22,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   // Fetch logs for these students
   const { data: logs, error: logsError } = await supabase
     .from('daily_logs')
-    .select('*, subjects(name, color_hex, icon_name), students!daily_logs_student_id_fkey(display_color), activities(name, color, icon)')
+    .select('*, subjects(name, color_hex, icon_name), students!daily_logs_student_id_fkey(display_color), activities(name, color, icon), is_starred')
     .in('student_id', selectedStudentIds)
 
   // Fetch trips for these students

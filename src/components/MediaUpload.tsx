@@ -94,6 +94,7 @@ export default function MediaUpload({
             type="file"
             className="hidden"
             accept="image/*,video/*"
+            capture="environment"
             onChange={handleFileChange}
             disabled={uploading}
           />

@@ -119,7 +119,8 @@ export async function createActivity(data: {
   file_url?: string, 
   students: string[],
   recurringRule?: string,
-  recurringCount?: number
+  recurringCount?: number,
+  is_starred?: boolean
 }) {
   const { supabase } = await requireAuth()
   
@@ -180,7 +181,8 @@ export async function createActivity(data: {
         shared_activity_group_id: sharedGroupId,
         recurring_group_id: recurringGroupId,
         time_of_day: data.time || null,
-        file_url: data.file_url || null
+        file_url: data.file_url || null,
+        is_starred: data.is_starred || false
       })
     }
   }
@@ -194,7 +196,7 @@ export async function createActivity(data: {
   return { success: true }
 }
 
-export async function updateActivity(id: string, data: { type:'Course'|'Activity', subject_id?: string, activity_id?: string, notes?: string, date: string, time?: string, duration_minutes?: number, file_url?: string, students?: string[] }) {
+export async function updateActivity(id: string, data: { type:'Course'|'Activity', subject_id?: string, activity_id?: string, notes?: string, date: string, time?: string, duration_minutes?: number, file_url?: string, students?: string[], is_starred?: boolean }) {
   const { supabase } = await requireAuth()
   
   if (data.students && data.students.length === 0) {
@@ -208,7 +210,8 @@ export async function updateActivity(id: string, data: { type:'Course'|'Activity
     date: data.date,
     subject_id: data.type ==='Course'? (data.subject_id || null) : null,
     activity_id: data.type ==='Activity'? (data.activity_id || null) : null,
-    time_of_day: data.time || null
+    time_of_day: data.time || null,
+    is_starred: data.is_starred || false
   }
   if (data.duration_minutes) updateData.duration_minutes = data.duration_minutes
   if (data.file_url !== undefined) updateData.file_url = data.file_url
@@ -246,7 +249,8 @@ export async function updateActivity(id: string, data: { type:'Course'|'Activity
         shared_activity_group_id: log.shared_activity_group_id,
         recurring_group_id: log.recurring_group_id,
         time_of_day: updateData.time_of_day,
-        file_url: updateData.file_url
+        file_url: updateData.file_url,
+        is_starred: updateData.is_starred
       }))
       await supabase.from('daily_logs').insert(inserts)
     }
@@ -323,15 +327,61 @@ export async function toggleLogCompletion(id: string, isCompleted: boolean, move
   return { success: true }
 }
 
+export async function toggleActivityStar(id: string, isStarred: boolean) {
+  const { supabase } = await requireAuth()
+  
+  const { data: log } = await supabase.from('daily_logs').select('shared_activity_group_id').eq('id', id).single()
+
+  let error;
+  if (log?.shared_activity_group_id) {
+    const { error: sharedError } = await supabase.from('daily_logs')
+      .update({ is_starred: isStarred })
+      .eq('shared_activity_group_id', log.shared_activity_group_id)
+    error = sharedError
+  } else {
+    const { error: singleError } = await supabase.from('daily_logs')
+      .update({ is_starred: isStarred })
+      .eq('id', id)
+    error = singleError
+  }
+
+  if (error) throw new Error(error.message)
+
+  revalidatePath('/calendar')
+  revalidatePath('/dashboard')
+  return { success: true }
+}
+
 export async function createTrip(data: { title: string, location: string, start_date: string, end_date: string, hours_credited?: number, display_color: string, subject_ids?: string[], theme?: string, students: string[] }) {
   const { supabase } = await requireAuth()
   
+  let lat = null, lon = null;
+  if (data.location) {
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(data.location)}`, {
+        headers: { 
+          'User-Agent': 'HomeschoolApp/1.0 (contact@homeschoolapp.local)',
+          'Accept-Language': 'en-US,en;q=0.9'
+        }
+      })
+      const geo = await res.json()
+      if (geo && geo.length > 0) {
+        lat = parseFloat(geo[0].lat)
+        lon = parseFloat(geo[0].lon)
+      }
+    } catch (e) {
+      console.error("Geocoding failed", e)
+    }
+  }
+
   // Insert trip
   const { data: trip, error: tripError } = await supabase
     .from('trips')
     .insert({
       title: data.title,
       location: data.location,
+      latitude: lat,
+      longitude: lon,
       start_date: data.start_date,
       end_date: data.end_date,
       hours_credited: data.hours_credited || 0,
@@ -427,11 +477,32 @@ export async function createTrip(data: { title: string, location: string, start_
 export async function updateTrip(id: string, data: { title: string, location: string, start_date: string, end_date: string, hours_credited?: number, display_color: string, subject_ids?: string[], theme?: string, students: string[] }) {
   const { supabase } = await requireAuth()
   
+  let lat = undefined, lon = undefined;
+  if (data.location) {
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(data.location)}`, {
+        headers: { 
+          'User-Agent': 'HomeschoolApp/1.0 (contact@homeschoolapp.local)',
+          'Accept-Language': 'en-US,en;q=0.9'
+        }
+      })
+      const geo = await res.json()
+      if (geo && geo.length > 0) {
+        lat = parseFloat(geo[0].lat)
+        lon = parseFloat(geo[0].lon)
+      }
+    } catch (e) {
+      console.error("Geocoding failed", e)
+    }
+  }
+
   const { error: tripError } = await supabase
     .from('trips')
     .update({
       title: data.title,
       location: data.location,
+      ...(lat !== undefined && { latitude: lat }),
+      ...(lon !== undefined && { longitude: lon }),
       start_date: data.start_date,
       end_date: data.end_date,
       hours_credited: data.hours_credited || 0,

@@ -341,7 +341,10 @@ export default function CalendarView({
                               </div>
                               <div className={`flex-1 flex items-center overflow-hidden whitespace-nowrap text-ellipsis ${isCompleted ?'line-through opacity-70':''}`}>
                                 <span style={{ color: subjColor }} className="mr-1 inline-block flex-shrink-0">{renderIcon(subjIcon,"w-3 h-3")}</span>
-                                <span className="font-semibold">{timeStr}{l.subjects?.name || l.activities?.name ||'Log'}</span>
+                                <span className="font-semibold flex items-center gap-1">
+                                  {l.is_starred && <LucideIcons.Star size={12} className="fill-amber-500 text-amber-500 flex-shrink-0" />}
+                                  {timeStr}{l.subjects?.name || l.activities?.name ||'Log'}
+                                </span>
                                 {l.notes && <span className="opacity-80 ml-1 truncate"> - {l.notes}</span>}
                                 {studentColors.length > 1 && (
                                   <span className="ml-2 flex items-center gap-0.5 flex-shrink-0">
@@ -388,7 +391,7 @@ export default function CalendarView({
                           return (
                             <div 
                               key={`mob-l-${idx}`} 
-                              className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full shadow-sm ${isCompleted ? 'opacity-30' : 'opacity-100'}`} 
+                              className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full shadow-sm ${isCompleted ? 'opacity-30' : 'opacity-100'} ${l.is_starred ? 'ring-2 ring-amber-400' : ''}`} 
                               style={{ background: bgStyle }} 
                               title={l.subjects?.name || l.activities?.name} 
                             />
@@ -517,7 +520,10 @@ export default function CalendarView({
                               </div>
                               <span className={`flex items-center gap-2 ${isCompleted ?'line-through opacity-70':''}`}>
                                 <span style={{ color: subjColor }}>{renderIcon(subjIcon,"w-4 h-4")}</span>
-                                <strong>{timeStr}{l.subjects?.name || l.activities?.name ||'Log'}:</strong> {l.notes || l.log_type}
+                                <strong className="flex items-center gap-1">
+                                  {l.is_starred && <LucideIcons.Star size={14} className="fill-amber-500 text-amber-500 flex-shrink-0" />}
+                                  {timeStr}{l.subjects?.name || l.activities?.name ||'Log'}:
+                                </strong> {l.notes || l.log_type}
                                 {studentColors.length > 1 && (
                                   <span className="ml-1 flex items-center gap-1 flex-shrink-0">
                                     {studentColors.map((c: string, idx: number) => (
