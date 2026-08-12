@@ -67,7 +67,7 @@ export default async function StudentDashboardPage({ params }: { params: Promise
 
   let totalHours = 0
   let totalMinutes = 0
-  let todaysCompletedLogs = []
+  let todaysCompletedLogs: any[] = []
   
   if (currentYear) {
     const { data: logs } = await supabase
