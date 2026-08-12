@@ -2,7 +2,10 @@
 
 import { useEffect, useRef } from 'react'
 import 'leaflet/dist/leaflet.css'
+import 'leaflet.markercluster/dist/MarkerCluster.css'
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
 import L from 'leaflet'
+import 'leaflet.markercluster'
 
 export default function MapClient({ trips }: { trips: any[] }) {
   const mapRef = useRef<L.Map | null>(null)
@@ -38,15 +41,45 @@ export default function MapClient({ trips }: { trips: any[] }) {
 
     // Clear existing markers (in case trips change)
     mapRef.current.eachLayer((layer) => {
-      if (layer instanceof L.Marker) {
-        mapRef.current?.removeLayer(layer)
+      // Don't remove the tile layer, only remove marker clusters or markers
+      if (layer instanceof L.Marker || (layer as any).addLayer) {
+        if (!(layer instanceof L.TileLayer)) {
+          mapRef.current?.removeLayer(layer)
+        }
       }
     })
+
+    // @ts-ignore
+    const markerCluster = L.markerClusterGroup({
+      showCoverageOnHover: false,
+      maxClusterRadius: 40
+    });
 
     // Add new markers
     validTrips.forEach(trip => {
       if (trip.latitude && trip.longitude) {
-        const marker = L.marker([trip.latitude, trip.longitude]).addTo(mapRef.current!)
+        
+        const now = new Date().toISOString()
+        let markerColor = '#9ca3af' // grey for future
+        if (trip.start_date <= now) {
+          const year = new Date(trip.start_date).getFullYear()
+          const colors = ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6', '#d946ef', '#f43f5e']
+          markerColor = colors[year % colors.length]
+        }
+
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="24" height="32">
+          <path fill="${markerColor}" stroke="white" stroke-width="20" d="M172.3 501.7C27 291 0 269.4 0 192 0 86 86 0 192 0s192 86 192 192c0 77.4-27 99-172.3 309.7-9.5 13.8-29.9 13.8-39.5 0zM192 272c44.2 0 80-35.8 80-80s-35.8-80-80-80-80 35.8-80 80 35.8 80 80 80z"/>
+        </svg>`;
+        
+        const customIcon = L.divIcon({
+          className: 'custom-div-icon',
+          html: svg,
+          iconSize: [24, 32],
+          iconAnchor: [12, 32],
+          popupAnchor: [0, -32]
+        });
+
+        const marker = L.marker([trip.latitude, trip.longitude], { icon: customIcon })
         
         // Escape content safely
         const title = trip.title || 'Trip'
@@ -63,14 +96,18 @@ export default function MapClient({ trips }: { trips: any[] }) {
         
         marker.bindPopup(`
           <div class="text-sm">
-            <strong style="color: ${color}">${title}</strong>
+            <a href="/calendar?viewTrip=${trip.id}" style="color: ${color}" class="font-bold text-base hover:underline">${title}</a>
             ${dateDisplay ? `<div class="text-xs text-stone-500 font-medium mt-1 mb-1">${dateDisplay}</div>` : ''}
             <p class="text-stone-600 mt-1">${loc}</p>
             ${theme ? `<p class="text-xs text-stone-400 mt-1 italic">${theme}</p>` : ''}
           </div>
         `)
+        
+        markerCluster.addLayer(marker)
       }
     })
+    
+    mapRef.current.addLayer(markerCluster)
 
     // Cleanup function for Strict Mode
     return () => {

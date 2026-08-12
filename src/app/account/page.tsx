@@ -5,6 +5,7 @@ import Link from'next/link'
 import InviteForm from'@/components/InviteForm'
 import StudentManager from'@/components/StudentManager'
 import EditPasswordModal from'@/components/EditPasswordModal'
+import BulkDeleteTool from '@/components/BulkDeleteTool'
 
 export default async function AccountManagementPage() {
   const supabase = await createServerClient()
@@ -69,7 +70,9 @@ export default async function AccountManagementPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           
-          <div className="md:col-span-2">
+          <div className="md:col-span-2 space-y-8">
+            <BulkDeleteTool />
+            
             <div className="bg-white  rounded-xl shadow-sm border border-stone-100  overflow-hidden">
               <div className="p-4 border-b border-stone-100">
                 <h2 className="font-bold text-lg">Family Accounts</h2>

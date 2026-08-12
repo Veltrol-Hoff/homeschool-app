@@ -67,3 +67,19 @@ export async function deleteMediaAttachment(mediaId: string, fileUrl: string) {
   revalidatePath('/dashboard')
   revalidatePath('/portfolio')
 }
+
+export async function updateMediaCaption(mediaId: string, caption: string) {
+  const { supabase } = await requireAuth()
+
+  const { error } = await supabase.from('media_attachments')
+    .update({ caption })
+    .eq('id', mediaId)
+
+  if (error) {
+    console.error("Update caption error:", error)
+    throw new Error("Failed to update media caption")
+  }
+
+  revalidatePath('/portfolio')
+}
+

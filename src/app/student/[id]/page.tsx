@@ -5,6 +5,8 @@ import RewardBadge from'./RewardBadge'
 import { Trophy, Star, Target, ShieldCheck, Clock, CheckCircle, BookOpen } from 'lucide-react'
 import { format } from 'date-fns'
 import AudioRecorder from '@/components/AudioRecorder'
+import BuckyMascot from '@/components/BuckyMascot'
+import BuckyFunCard from '@/components/BuckyFunCard'
 
 export default async function StudentDashboardPage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient()
@@ -119,6 +121,7 @@ export default async function StudentDashboardPage({ params }: { params: Promise
   return (
     <div className="p-8 max-w-6xl mx-auto space-y-8">
       
+
       {/* Header / Bio */}
       <div className="bg-white  rounded-2xl shadow-sm border border-stone-100  p-8 relative overflow-hidden">
         <div className="absolute top-0 right-0 p-8 opacity-5">
@@ -152,13 +155,7 @@ export default async function StudentDashboardPage({ params }: { params: Promise
             </Link>
           </div>
           
-          <div className="flex items-center gap-4 bg-white/80  p-4 rounded-3xl shadow-sm border border-stone-100  backdrop-blur-sm">
-            <div className="bg-stone-100  px-4 py-3 rounded-2xl rounded-tr-none shadow-sm relative">
-              <p className="text-base font-medium text-stone-700">Woof! You're doing great, {student.name}! Let's learn something new today!</p>
-              <div className="absolute top-1/2 -right-2 transform -translate-y-1/2 w-0 h-0 border-y-8 border-y-transparent border-l-8 border-l-stone-100"></div>
-            </div>
-            <img src="/mascot.jpg"alt="Bucky the Mascot"className="w-24 h-24 rounded-full object-cover shadow-sm border-2 border-white"/>
-          </div>
+          <BuckyMascot studentName={student.name} />
         </div>
       </div>
 
@@ -210,6 +207,8 @@ export default async function StudentDashboardPage({ params }: { params: Promise
             
             <div className="space-y-6">
               
+              <BuckyFunCard />
+
               {/* Hours Widget */}
               {student.can_view_compliance ? (
                 <div className="bg-stone-50  border border-stone-200  p-5 rounded-xl">
@@ -231,27 +230,7 @@ export default async function StudentDashboardPage({ params }: { params: Promise
                 </div>
               )}
 
-              {/* Today's Lessons & Narration */}
-              <div className="bg-stone-50 border border-stone-200 p-5 rounded-xl">
-                <p className="font-bold text-stone-900 flex items-center gap-1.5 mb-4">
-                  <BookOpen size={18} className="text-stone-500"/> Today's Completed Lessons
-                </p>
-                {todaysCompletedLogs.length === 0 ? (
-                  <p className="text-sm text-stone-500 italic">No lessons completed today yet.</p>
-                ) : (
-                  <div className="space-y-4">
-                    {todaysCompletedLogs.map((log: any) => (
-                      <div key={log.id} className="bg-white p-4 rounded-xl border border-stone-100 shadow-sm">
-                        <div className="flex justify-between items-center mb-3">
-                          <span className="font-bold text-sm text-stone-700">{log.subjects?.name || 'General Activity'}</span>
-                          <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">Completed</span>
-                        </div>
-                        <AudioRecorder logId={log.id} studentId={id} />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+
 
               {/* Grades / Recent Work Widget */}
               {student.can_view_grades ? (

@@ -2,18 +2,38 @@ import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import * as LucideIcons from 'lucide-react'
-import { format } from 'date-fns'
-import MediaActions from './MediaActions'
+import PortfolioGrid from './PortfolioGrid'
+import PortfolioFilters from './PortfolioFilters'
 
-export default async function PortfolioPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+export default async function PortfolioPage({ 
+  searchParams 
+}: { 
+  searchParams: Promise<{ tab?: string, student?: string, year?: string, subject?: string }> 
+}) {
   const params = await searchParams
   const activeTab = params.tab || 'portfolio'
+  const filterStudentId = params.student
+  const filterYearId = params.year
+  const filterSubjectId = params.subject
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return redirect('/login')
 
-  const { data: students } = await supabase.from('students').select('*')
+  // Check role to determine edit permissions
+  const { data: profile } = await supabase.from('profiles').select('household_role').eq('id', user.id).single()
+  const canEdit = profile?.household_role === 'owner' || profile?.household_role === 'co-owner'
+
+  // Fetch reference data for filters
+  const [
+    { data: students },
+    { data: academicYears },
+    { data: subjects }
+  ] = await Promise.all([
+    supabase.from('students').select('*').order('name'),
+    supabase.from('academic_years').select('*').order('start_date', { ascending: false }),
+    supabase.from('subjects').select('*').order('name')
+  ])
   
   // Fetch media attachments
   // Left join to both daily_logs and trips
@@ -26,16 +46,20 @@ export default async function PortfolioPage({ searchParams }: { searchParams: Pr
       log_id,
       trip_id,
       is_portfolio_sample,
-      daily_logs (
+      caption,
+      daily_logs!left (
         date,
         notes,
         student_id,
+        academic_year_id,
+        subject_id,
         subjects (name)
       ),
-      trips (
+      trips!left (
         title,
         start_date,
-        trip_students (student_id)
+        trip_students (student_id),
+        trip_subjects (subject_id)
       )
     `)
     .order('created_at', { ascending: false })
@@ -44,14 +68,130 @@ export default async function PortfolioPage({ searchParams }: { searchParams: Pr
     query = query.eq('is_portfolio_sample', true)
   }
 
-  const { data: portfolioSamples, error } = await query
+  // Client-side filtering logic below (Supabase deep OR/AND filtering with left joins is tricky, 
+  // so we'll fetch then filter in JS since portfolios usually aren't tens of thousands of items, 
+  // or we'd need complex PostgREST RPC)
+  let { data: allSamples, error } = await query
 
   if (error) {
-    console.error("Error fetching portfolio:", error)
+    // If the error is because the 'caption' column is missing, try a fallback query
+    if (error.message?.includes('caption')) {
+      console.log("Caption column missing, falling back to query without caption...")
+      let fallbackQuery = supabase
+        .from('media_attachments')
+        .select(`
+          id, 
+          file_url, 
+          created_at,
+          log_id,
+          trip_id,
+          is_portfolio_sample,
+          daily_logs!left (
+            date,
+            notes,
+            student_id,
+            academic_year_id,
+            subject_id,
+            subjects (name)
+          ),
+          trips!left (
+            title,
+            start_date,
+            trip_students (student_id)
+          )
+        `)
+        .order('created_at', { ascending: false })
+
+      if (activeTab === 'portfolio') {
+        fallbackQuery = fallbackQuery.eq('is_portfolio_sample', true)
+      }
+
+      const fallbackRes = await fallbackQuery
+      allSamples = fallbackRes.data
+      error = fallbackRes.error
+      
+      if (error) {
+        console.error("Error fetching portfolio (fallback):", error)
+      }
+    } else {
+      console.error("Error fetching portfolio:", error)
+      // If it still failed, maybe it's trip_subjects missing? We can do one more ultra-safe fallback
+      let safeQuery = supabase
+        .from('media_attachments')
+        .select(`
+          id, 
+          file_url, 
+          created_at,
+          log_id,
+          trip_id,
+          is_portfolio_sample,
+          daily_logs!left (
+            date,
+            notes,
+            student_id,
+            academic_year_id,
+            subject_id,
+            subjects (name)
+          ),
+          trips!left (
+            title,
+            start_date,
+            trip_students (student_id)
+          )
+        `)
+        .order('created_at', { ascending: false })
+        
+      if (activeTab === 'portfolio') {
+        safeQuery = safeQuery.eq('is_portfolio_sample', true)
+      }
+      
+      const safeRes = await safeQuery
+      allSamples = safeRes.data
+    }
+  }
+
+  // Filter in memory based on params
+  let portfolioSamples = allSamples || []
+
+  if (filterStudentId) {
+    portfolioSamples = portfolioSamples.filter(sample => {
+      if (sample.daily_logs) {
+        return sample.daily_logs.student_id === filterStudentId
+      } else if (sample.trips?.trip_students) {
+        return sample.trips.trip_students.some((ts: any) => ts.student_id === filterStudentId)
+      }
+      return false
+    })
+  }
+
+  if (filterYearId) {
+    const selectedYear = academicYears?.find(y => y.id === filterYearId)
+    if (selectedYear) {
+      portfolioSamples = portfolioSamples.filter(sample => {
+        if (sample.daily_logs) {
+          return sample.daily_logs.academic_year_id === filterYearId
+        } else if (sample.trips?.start_date) {
+          // Fallback to checking if trip date falls within academic year
+          return sample.trips.start_date >= selectedYear.start_date && sample.trips.start_date <= selectedYear.end_date
+        }
+        return false
+      })
+    }
+  }
+
+  if (filterSubjectId) {
+    portfolioSamples = portfolioSamples.filter(sample => {
+      if (sample.daily_logs) {
+        return sample.daily_logs.subject_id === filterSubjectId
+      } else if (sample.trips?.trip_subjects) {
+        return sample.trips.trip_subjects.some((ts: any) => ts.subject_id === filterSubjectId)
+      }
+      return false
+    })
   }
 
   return (
-    <div className="min-h-screen bg-transparent p-4 sm:p-8 max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen bg-transparent p-4 sm:p-8 max-w-7xl mx-auto space-y-6">
       
       <div className="flex justify-between items-center">
         <div>
@@ -68,7 +208,7 @@ export default async function PortfolioPage({ searchParams }: { searchParams: Pr
 
       <div className="flex border-b border-stone-200">
         <Link 
-          href="/portfolio?tab=portfolio"
+          href={`/portfolio?tab=portfolio${filterStudentId ? `&student=${filterStudentId}` : ''}${filterYearId ? `&year=${filterYearId}` : ''}${filterSubjectId ? `&subject=${filterSubjectId}` : ''}`}
           className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
             activeTab === 'portfolio'
               ? 'border-slate-500 text-slate-600'
@@ -79,7 +219,7 @@ export default async function PortfolioPage({ searchParams }: { searchParams: Pr
           Starred Portfolio
         </Link>
         <Link 
-          href="/portfolio?tab=all"
+          href={`/portfolio?tab=all${filterStudentId ? `&student=${filterStudentId}` : ''}${filterYearId ? `&year=${filterYearId}` : ''}${filterSubjectId ? `&subject=${filterSubjectId}` : ''}`}
           className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
             activeTab === 'all'
               ? 'border-slate-500 text-slate-600'
@@ -91,80 +231,29 @@ export default async function PortfolioPage({ searchParams }: { searchParams: Pr
         </Link>
       </div>
 
+      <PortfolioFilters 
+        students={students || []}
+        academicYears={academicYears || []}
+        subjects={subjects || []}
+        activeTab={activeTab}
+      />
+
       {!portfolioSamples || portfolioSamples.length === 0 ? (
         <div className="bg-white rounded-2xl border-2 border-dashed border-stone-200 p-12 text-center">
           <LucideIcons.Image size={48} className="mx-auto text-stone-300 mb-4" />
           <h3 className="text-xl font-bold text-stone-700 mb-2">No media found</h3>
           <p className="text-stone-500 max-w-md mx-auto">
             {activeTab === 'portfolio' 
-              ? "When you attach media to daily logs or trips, you can click the star icon to highlight it as a portfolio sample. It will appear here!"
-              : "You haven't uploaded any media yet. Attach files to your daily logs or trips to see them here."}
+              ? "No starred portfolio items match your filters. Click the star on media attached to daily logs to feature them here."
+              : "No media uploads match your filters."}
           </p>
         </div>
       ) : (
-        <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-6 space-y-6">
-          {portfolioSamples.map((sample: any) => {
-            const isImage = sample.file_url.match(/\.(jpeg|jpg|gif|png|webp)$/i)
-            const date = sample.daily_logs?.date || sample.trips?.start_date || sample.created_at
-            const title = sample.daily_logs ? (sample.daily_logs.notes || sample.daily_logs.subjects?.name || 'Daily Log') : (sample.trips?.title || 'Trip')
-            
-            // Resolve student name
-            let studentName = ''
-            if (sample.daily_logs?.student_id) {
-              const st = students?.find(s => s.id === sample.daily_logs.student_id)
-              if (st) studentName = st.name
-            } else if (sample.trips?.trip_students?.length > 0) {
-              const tripSt = sample.trips.trip_students
-              const names = tripSt.map((ts: any) => students?.find(s => s.id === ts.student_id)?.name).filter(Boolean)
-              if (names.length > 0) studentName = names.join(', ')
-            }
-            
-            return (
-              <div key={sample.id} className="relative break-inside-avoid bg-white rounded-xl shadow-sm border border-stone-100 overflow-hidden group hover:shadow-md transition-shadow">
-                
-                <MediaActions 
-                  mediaId={sample.id} 
-                  isPortfolioSample={sample.is_portfolio_sample} 
-                  fileUrl={sample.file_url} 
-                />
-
-                {isImage ? (
-                  <a href={sample.file_url} target="_blank" rel="noopener noreferrer" className="block relative">
-                    <img src={sample.file_url} alt="Portfolio item" className="w-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                  </a>
-                ) : (
-                  <a href={sample.file_url} target="_blank" rel="noopener noreferrer" className="w-full aspect-video bg-stone-100 flex flex-col items-center justify-center p-4 hover:bg-stone-200 transition-colors block relative">
-                    <LucideIcons.FileText size={48} className="text-stone-400 mb-2" />
-                    <span className="text-sm font-medium text-stone-600 truncate w-full text-center">
-                      Document
-                    </span>
-                  </a>
-                )}
-                <div className="p-4 bg-white border-t border-stone-100 relative z-10">
-                  <div className="flex justify-between items-start mb-1">
-                    <h3 className="font-bold text-stone-800 text-sm line-clamp-1">{title}</h3>
-                    {sample.is_portfolio_sample && (
-                      <LucideIcons.Star size={16} className="text-yellow-500 fill-yellow-500 flex-shrink-0" />
-                    )}
-                  </div>
-                  <p className="text-xs text-stone-500 font-medium">
-                    {format(new Date(date), 'MMM d, yyyy')}
-                  </p>
-                  {sample.daily_logs?.subjects?.name && (
-                    <span className="inline-block mt-2 text-[10px] uppercase tracking-wider font-bold bg-stone-100 text-stone-600 px-2 py-0.5 rounded mr-2">
-                      {sample.daily_logs.subjects.name}
-                    </span>
-                  )}
-                  {studentName && (
-                    <span className="inline-block mt-2 text-[10px] uppercase tracking-wider font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
-                      {studentName}
-                    </span>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
+        <PortfolioGrid 
+          samples={portfolioSamples} 
+          students={students || []} 
+          canEdit={canEdit}
+        />
       )}
     </div>
   )

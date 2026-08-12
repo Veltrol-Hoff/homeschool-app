@@ -3,6 +3,7 @@ import { redirect } from'next/navigation'
 import { getSchoolSettings, updateSchoolSettings } from'./actions'
 import AccountManager from'./AccountManager'
 import AcademicYearManager from './AcademicYearManager'
+import BulkDeleteTool from '@/components/BulkDeleteTool'
 
 export default async function AccountSettingsPage() {
   const supabase = await createClient()
@@ -11,6 +12,8 @@ export default async function AccountSettingsPage() {
 
   const { data: profiles } = await supabase.from('profiles').select('*').order('household_role', { ascending: false })
   const { data: students } = await supabase.from('students').select('*').order('birth_date', { ascending: false })
+  const { data: subjects } = await supabase.from('subjects').select('*').order('name')
+  const { data: activities } = await supabase.from('activities').select('*').order('name')
   const settings = await getSchoolSettings()
   const { data: academicYears } = await supabase.from('academic_years').select('*').order('start_date', { ascending: false })
 
@@ -97,6 +100,8 @@ export default async function AccountSettingsPage() {
           </button>
         </form>
       </div>
+
+      <BulkDeleteTool subjects={subjects || []} activities={activities || []} />
 
       <div className="bg-white  rounded-xl shadow-sm border border-red-200  overflow-hidden">
         <div className="p-4 border-b border-red-100  bg-red-50/50">

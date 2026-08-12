@@ -187,8 +187,17 @@ export async function createActivity(data: {
     }
   }
   
-  const { error } = await supabase.from('daily_logs').insert(inserts)
+  const { data: insertedLogs, error } = await supabase.from('daily_logs').insert(inserts).select()
   if (error) throw new Error(error.message)
+  
+  if (data.file_url && insertedLogs && insertedLogs.length > 0) {
+    const mediaInserts = insertedLogs.map((log: any) => ({
+      log_id: log.id,
+      file_url: data.file_url,
+      is_portfolio_sample: false
+    }))
+    await supabase.from('media_attachments').insert(mediaInserts)
+  }
   
   revalidatePath('/calendar')
   revalidatePath('/dashboard')
@@ -218,11 +227,21 @@ export async function updateActivity(id: string, data: { type:'Course'|'Activity
 
   if (log?.shared_activity_group_id && data.students) {
     // 1. Update existing logs
-    const { error } = await supabase.from('daily_logs')
+    const { data: updatedLogs, error } = await supabase.from('daily_logs')
       .update(updateData)
       .eq('shared_activity_group_id', log.shared_activity_group_id)
+      .select()
       
     if (error) throw new Error(error.message)
+    
+    if (updateData.file_url && updatedLogs) {
+      const mediaInserts = updatedLogs.map(l => ({
+        log_id: l.id,
+        file_url: updateData.file_url,
+        is_portfolio_sample: false
+      }))
+      await supabase.from('media_attachments').insert(mediaInserts)
+    }
 
     // 2. Fetch existing students in this group
     const { data: existingLogs } = await supabase.from('daily_logs').select('id, student_id').eq('shared_activity_group_id', log.shared_activity_group_id)
@@ -252,15 +271,35 @@ export async function updateActivity(id: string, data: { type:'Course'|'Activity
         file_url: updateData.file_url,
         is_starred: updateData.is_starred
       }))
-      await supabase.from('daily_logs').insert(inserts)
+      const { data: insertedNewLogs, error: newLogsError } = await supabase.from('daily_logs').insert(inserts).select()
+      if (newLogsError) throw new Error(newLogsError.message)
+      
+      if (updateData.file_url && insertedNewLogs) {
+        const mediaInserts = insertedNewLogs.map(l => ({
+          log_id: l.id,
+          file_url: updateData.file_url,
+          is_portfolio_sample: false
+        }))
+        await supabase.from('media_attachments').insert(mediaInserts)
+      }
     }
 
   } else {
     // Legacy / single update
-    const { error } = await supabase.from('daily_logs')
+    const { data: updatedLog, error } = await supabase.from('daily_logs')
       .update(updateData)
       .eq('id', id)
+      .select()
+      .single()
     if (error) throw new Error(error.message)
+    
+    if (updateData.file_url) {
+      await supabase.from('media_attachments').insert({
+        log_id: id,
+        file_url: updateData.file_url,
+        is_portfolio_sample: false
+      })
+    }
   }
   
   revalidatePath('/calendar')
@@ -660,7 +699,16 @@ export async function updateRecurringActivity(
     if (data.file_url !== undefined) updateData.file_url = data.file_url
     
     // First, update the log itself
-    await supabase.from('daily_logs').update(updateData).eq('id', log.id)
+    const { data: updatedLog, error: updError } = await supabase.from('daily_logs').update(updateData).eq('id', log.id).select().single()
+    if (updError) throw new Error(updError.message)
+    
+    if (updateData.file_url && updatedLog) {
+      await supabase.from('media_attachments').insert({
+        log_id: updatedLog.id,
+        file_url: updateData.file_url,
+        is_portfolio_sample: false
+      })
+    }
     
     // If it's part of a shared group, handle students for this specific occurrence
     if (log.shared_activity_group_id && data.students) {
@@ -691,7 +739,17 @@ export async function updateRecurringActivity(
             time_of_day: updateData.time_of_day,
             file_url: updateData.file_url
           }))
-          await supabase.from('daily_logs').insert(inserts)
+          const { data: insertedNewLogs, error: newLogsError } = await supabase.from('daily_logs').insert(inserts).select()
+          if (newLogsError) throw new Error(newLogsError.message)
+          
+          if (updateData.file_url && insertedNewLogs) {
+            const mediaInserts = insertedNewLogs.map(l => ({
+              log_id: l.id,
+              file_url: updateData.file_url,
+              is_portfolio_sample: false
+            }))
+            await supabase.from('media_attachments').insert(mediaInserts)
+          }
         }
       }
     }
@@ -700,5 +758,84 @@ export async function updateRecurringActivity(
   revalidatePath('/calendar')
   revalidatePath('/dashboard')
   revalidatePath('/', 'layout')
+  return { success: true }
+}
+
+export async function bulkDeleteCalendarItems(data: {
+  startDate: string,
+  endDate: string | null,
+  clearCourses: boolean,
+  clearActivities: boolean,
+  clearTrips: boolean,
+  selectedSubjects?: string[],
+  selectedActivities?: string[]
+}) {
+  const { supabase } = await requireAuth()
+  
+  if (!data.startDate) throw new Error("Start date is required")
+  
+  let successCount = 0;
+
+  // 1. Handle Trips
+  if (data.clearTrips) {
+    let tripQuery = supabase.from('trips').delete().gte('start_date', data.startDate)
+    if (data.endDate) {
+      tripQuery = tripQuery.lte('start_date', data.endDate)
+    }
+    const { error: tripError } = await tripQuery
+    if (tripError) throw new Error("Failed to delete trips: " + tripError.message)
+  }
+
+  // 2. Handle Courses and Activities
+  if (data.clearCourses || data.clearActivities) {
+    let logsQuery = supabase.from('daily_logs')
+      .delete()
+      .gte('date', data.startDate)
+      .eq('log_type', 'Planned')
+
+    if (data.endDate) {
+      logsQuery = logsQuery.lte('date', data.endDate)
+    }
+
+    if (data.clearCourses && !data.clearActivities) {
+      logsQuery = logsQuery.not('subject_id', 'is', null)
+      if (data.selectedSubjects && data.selectedSubjects.length > 0) {
+        logsQuery = logsQuery.in('subject_id', data.selectedSubjects)
+      }
+    } else if (!data.clearCourses && data.clearActivities) {
+      logsQuery = logsQuery.not('activity_id', 'is', null)
+      if (data.selectedActivities && data.selectedActivities.length > 0) {
+        logsQuery = logsQuery.in('activity_id', data.selectedActivities)
+      }
+    } else if (data.clearCourses && data.clearActivities) {
+      // If BOTH are checked, and neither has specific filters, we just delete everything.
+      // But if either has specific filters, we must use an OR statement via PostgREST.
+      const hasSubjectFilters = data.selectedSubjects && data.selectedSubjects.length > 0;
+      const hasActivityFilters = data.selectedActivities && data.selectedActivities.length > 0;
+      
+      if (hasSubjectFilters || hasActivityFilters) {
+        const filters = [];
+        if (hasSubjectFilters) filters.push(`subject_id.in.(${data.selectedSubjects!.join(',')})`)
+        else if (data.clearCourses) filters.push('subject_id.not.is.null')
+
+        if (hasActivityFilters) filters.push(`activity_id.in.(${data.selectedActivities!.join(',')})`)
+        else if (data.clearActivities) filters.push('activity_id.not.is.null')
+
+        logsQuery = logsQuery.or(filters.join(','))
+      }
+    }
+    // Wait, if both are true, what if there's a log with NO subject AND NO activity (like a raw note)?
+    // The user probably wants those deleted too. We'll leave it as just `log_type = 'Planned'`.
+    // Actually, Trips also generate 'Field Trip' logs, not 'Planned' logs, so this is perfectly safe.
+
+    const { error: logsError } = await logsQuery
+    if (logsError) throw new Error("Failed to delete logs: " + logsError.message)
+  }
+
+  revalidatePath('/calendar')
+  revalidatePath('/dashboard')
+  revalidatePath('/trips')
+  revalidatePath('/', 'layout')
+  
   return { success: true }
 }
