@@ -19,7 +19,8 @@ export default function Navigation({ children, students = [], userRole }: { chil
     { href:'/calendar', label:'Calendar', icon: <LucideIcons.CalendarDays size={20} /> },
     { href:'/trips', label:'Trips & Vacations', icon: <LucideIcons.Plane size={20} /> },
     { href:'/transcripts', label:'Transcripts', icon: <LucideIcons.GraduationCap size={20} /> },
-    { href:'/export', label:'Portfolio', icon: <LucideIcons.FileText size={20} /> },
+    { href:'/portfolio', label:'Portfolio', icon: <LucideIcons.Star size={20} /> },
+    { href:'/export', label:'End of Year Export', icon: <LucideIcons.FileDown size={20} /> },
   ]
 
   const settingsLinks = [

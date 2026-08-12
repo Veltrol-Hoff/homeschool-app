@@ -298,7 +298,7 @@ export default function InlineActivityModal({
 
             {/* Dates / Times */}
             {activeTab ==='Trip'? (
-              <>
+              <div key="trip-fields">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">Location</label>
@@ -329,9 +329,9 @@ export default function InlineActivityModal({
                     <input type="color"name="display_color"defaultValue={existingData?.display_color ||'#3B82F6'} className="h-10 w-16 p-1 rounded cursor-pointer border border-stone-300  bg-white"/>
                   </div>
                 </div>
-              </>
+              </div>
             ) : (
-              <>
+              <div key="activity-fields">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">Date</label>
@@ -359,13 +359,22 @@ export default function InlineActivityModal({
                   <div>
                     <label className="block text-sm font-medium mb-1">Duration</label>
                     <select name="duration_minutes"defaultValue={existingData?.duration_minutes || 30} className="w-full rounded-md border-stone-300 shadow-sm focus:border-slate-500   p-2 text-sm">
-                      <option value="15">15 mins</option>
-                      <option value="30">30 mins</option>
-                      <option value="45">45 mins</option>
-                      <option value="60">1 hr</option>
-                      <option value="75">1 hr 15 mins</option>
-                      <option value="90">1 hr 30 mins</option>
-                      <option value="120">2 hrs</option>
+                      {Array.from({ length: 96 }, (_, i) => (i + 1) * 15).map(mins => {
+                        const h = Math.floor(mins / 60)
+                        const m = mins % 60
+                        let label = ''
+                        if (h > 0) label += `${h} hr${h > 1 ? 's' : ''}`
+                        if (m > 0) label += `${h > 0 ? ' ' : ''}${m} mins`
+                        
+                        // Fallback label just in case
+                        if (!label) label = `${mins} mins`
+                        
+                        return <option key={mins} value={mins}>{label}</option>
+                      })}
+                      {/* Add exact match option if it's not a multiple of 15 */}
+                      {existingData?.duration_minutes && existingData.duration_minutes % 15 !== 0 && (
+                        <option value={existingData.duration_minutes}>{existingData.duration_minutes} mins (Custom)</option>
+                      )}
                     </select>
                   </div>
                   <div>
@@ -391,7 +400,7 @@ export default function InlineActivityModal({
                     <MediaUpload logId={editId} existingMedia={artifacts} onUpdate={fetchMedia} />
                   </div>
                 )}
-              </>
+              </div>
             )}
 
             {/* Recurring Rule (Course & Activity) */}

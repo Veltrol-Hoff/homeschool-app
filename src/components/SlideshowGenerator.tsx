@@ -12,7 +12,7 @@ export default function SlideshowGenerator({ studentId, yearId }: { studentId: s
   const [mediaItems, setMediaItems] = useState<{url: string, type: string}[]>([])
   const [currentSlide, setCurrentSlide] = useState(0)
   
-  const ffmpegRef = useRef(new FFmpeg())
+  const ffmpegRef = useRef<FFmpeg | null>(null)
 
   async function fetchMedia() {
     const urls = await fetchPortfolioMedia(studentId, yearId)
@@ -41,6 +41,9 @@ export default function SlideshowGenerator({ studentId, yearId }: { studentId: s
     setProgress(0)
 
     try {
+      if (!ffmpegRef.current) {
+        ffmpegRef.current = new FFmpeg()
+      }
       const ffmpeg = ffmpegRef.current
 
       // Load ffmpeg if not loaded

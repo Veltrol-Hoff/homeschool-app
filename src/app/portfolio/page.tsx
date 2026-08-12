@@ -25,14 +25,17 @@ export default async function PortfolioPage({ searchParams }: { searchParams: Pr
       created_at,
       log_id,
       trip_id,
+      is_portfolio_sample,
       daily_logs (
         date,
         notes,
+        student_id,
         subjects (name)
       ),
       trips (
         title,
-        start_date
+        start_date,
+        trip_students (student_id)
       )
     `)
     .order('created_at', { ascending: false })
@@ -105,6 +108,17 @@ export default async function PortfolioPage({ searchParams }: { searchParams: Pr
             const date = sample.daily_logs?.date || sample.trips?.start_date || sample.created_at
             const title = sample.daily_logs ? (sample.daily_logs.notes || sample.daily_logs.subjects?.name || 'Daily Log') : (sample.trips?.title || 'Trip')
             
+            // Resolve student name
+            let studentName = ''
+            if (sample.daily_logs?.student_id) {
+              const st = students?.find(s => s.id === sample.daily_logs.student_id)
+              if (st) studentName = st.name
+            } else if (sample.trips?.trip_students?.length > 0) {
+              const tripSt = sample.trips.trip_students
+              const names = tripSt.map((ts: any) => students?.find(s => s.id === ts.student_id)?.name).filter(Boolean)
+              if (names.length > 0) studentName = names.join(', ')
+            }
+            
             return (
               <div key={sample.id} className="relative break-inside-avoid bg-white rounded-xl shadow-sm border border-stone-100 overflow-hidden group hover:shadow-md transition-shadow">
                 
@@ -137,8 +151,13 @@ export default async function PortfolioPage({ searchParams }: { searchParams: Pr
                     {format(new Date(date), 'MMM d, yyyy')}
                   </p>
                   {sample.daily_logs?.subjects?.name && (
-                    <span className="inline-block mt-2 text-[10px] uppercase tracking-wider font-bold bg-stone-100 text-stone-600 px-2 py-0.5 rounded">
+                    <span className="inline-block mt-2 text-[10px] uppercase tracking-wider font-bold bg-stone-100 text-stone-600 px-2 py-0.5 rounded mr-2">
                       {sample.daily_logs.subjects.name}
+                    </span>
+                  )}
+                  {studentName && (
+                    <span className="inline-block mt-2 text-[10px] uppercase tracking-wider font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+                      {studentName}
                     </span>
                   )}
                 </div>

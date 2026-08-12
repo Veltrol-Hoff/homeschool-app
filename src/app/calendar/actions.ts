@@ -378,8 +378,9 @@ export async function createTrip(data: { title: string, location: string, start_
         const logInserts: any[] = []
         if (data.subject_ids && data.subject_ids.length > 0) {
           const durationPerSubject = ((data.hours_credited || 0) * 60) / data.subject_ids.length
-          for (const studentId of data.students) {
-            for (const subjectId of data.subject_ids) {
+          for (const subjectId of data.subject_ids) {
+            const sharedGroupId = crypto.randomUUID()
+            for (const studentId of data.students) {
               logInserts.push({
                 student_id: studentId,
                 academic_year_id: yearId,
@@ -389,11 +390,13 @@ export async function createTrip(data: { title: string, location: string, start_
                 subject_id: subjectId,
                 notes: `Trip: ${data.title}`,
                 trip_id: trip.id,
-                pending_parent_approval: false
+                pending_parent_approval: false,
+                shared_activity_group_id: sharedGroupId
               })
             }
           }
         } else {
+          const sharedGroupId = crypto.randomUUID()
           for (const studentId of data.students) {
             logInserts.push({
               student_id: studentId,
@@ -404,7 +407,8 @@ export async function createTrip(data: { title: string, location: string, start_
               subject_id: null,
               notes: `Trip: ${data.title}`,
               trip_id: trip.id,
-              pending_parent_approval: false
+              pending_parent_approval: false,
+              shared_activity_group_id: sharedGroupId
             })
           }
         }
@@ -476,8 +480,9 @@ export async function updateTrip(id: string, data: { title: string, location: st
         const logInserts: any[] = []
         if (data.subject_ids && data.subject_ids.length > 0) {
           const durationPerSubject = ((data.hours_credited || 0) * 60) / data.subject_ids.length
-          for (const studentId of data.students) {
-            for (const subjectId of data.subject_ids) {
+          for (const subjectId of data.subject_ids) {
+            const sharedGroupId = crypto.randomUUID()
+            for (const studentId of data.students) {
               logInserts.push({
                 student_id: studentId,
                 academic_year_id: yearId,
@@ -487,11 +492,13 @@ export async function updateTrip(id: string, data: { title: string, location: st
                 subject_id: subjectId,
                 notes: `Trip: ${data.title}`,
                 trip_id: id,
-                pending_parent_approval: false
+                pending_parent_approval: false,
+                shared_activity_group_id: sharedGroupId
               })
             }
           }
         } else {
+          const sharedGroupId = crypto.randomUUID()
           for (const studentId of data.students) {
             logInserts.push({
               student_id: studentId,
@@ -502,7 +509,8 @@ export async function updateTrip(id: string, data: { title: string, location: st
               subject_id: null,
               notes: `Trip: ${data.title}`,
               trip_id: id,
-              pending_parent_approval: false
+              pending_parent_approval: false,
+              shared_activity_group_id: sharedGroupId
             })
           }
         }

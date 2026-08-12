@@ -197,7 +197,7 @@ export default async function DashboardPage() {
     })
 
     // Upcoming Trips
-    const upcomingTrips = tripStudents?.filter(ts => ts.student_id === student.id).map(ts => ts.trips).filter(t => t && t.start_date >= today && t.start_date < nextWeekStr) || []
+    const upcomingTrips = tripStudents?.filter(ts => ts.student_id === student.id).map(ts => ts.trips).filter((t: any) => t && t.start_date >= today && t.start_date < nextWeekStr) || []
     familyWeeklyMinutes += upcomingTrips.reduce((sum, trip: any) => sum + ((trip.hours_credited || 0) * 60), 0)
   })
 
