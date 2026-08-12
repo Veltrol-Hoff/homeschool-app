@@ -71,7 +71,7 @@ export default function AccountManager({ profiles, currentUserId, students }: { 
 
       {showInviteForm && (
         <div className="p-4 border-b border-stone-100 bg-stone-50">
-          <InviteForm students={students} />
+          <InviteForm students={students} onClose={() => setShowInviteForm(false)} />
         </div>
       )}
 

@@ -66,13 +66,13 @@ export async function POST(request: Request) {
     // Since we used admin client, it bypasses RLS, but it's safe because we verified the caller above.
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
-      .insert([{
-        id: inviteData.user.id,
+      .update({
         household_role: role,
-        linked_student_id: role ==='student'? linked_student_id : null,
-        status:'active',
+        linked_student_id: role === 'student' ? linked_student_id : null,
+        status: 'active',
         display_name: email.split('@')[0] // Temporary display name
-      }])
+      })
+      .eq('id', inviteData.user.id)
 
     if (profileError) {
       console.error("Profile Creation Error:", profileError)

@@ -151,7 +151,7 @@ export default async function PortfolioPage({
   }
 
   // Filter in memory based on params
-  let portfolioSamples = allSamples || []
+  let portfolioSamples: any[] = allSamples || []
 
   if (filterStudentId) {
     portfolioSamples = portfolioSamples.filter(sample => {

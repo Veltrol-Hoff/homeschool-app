@@ -3,7 +3,7 @@
 import { useState } from'react'
 import { useRouter } from'next/navigation'
 
-export default function InviteForm({ students }: { students: { id: string, name: string }[] }) {
+export default function InviteForm({ students, onClose }: { students: { id: string, name: string }[], onClose?: () => void }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
@@ -51,17 +51,38 @@ export default function InviteForm({ students }: { students: { id: string, name:
     <div className="bg-white  rounded-xl shadow-sm border border-stone-100  p-6">
       <h2 className="font-bold text-lg mb-4">Create Account</h2>
       
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {error && (
-          <div className="bg-red-50 text-red-600 p-3 rounded text-sm border border-red-100">
-            {error}
-          </div>
-        )}
-        {success && (
+      {success ? (
+        <div className="py-4 space-y-4">
           <div className="bg-green-50 text-green-600 p-3 rounded text-sm border border-green-100">
             Account created successfully!
           </div>
-        )}
+          <div className="flex gap-2">
+            <button 
+              type="button"
+              onClick={() => {
+                setSuccess(false);
+                if (onClose) onClose();
+              }}
+              className="w-full bg-slate-600 text-white py-2 rounded-md font-medium hover:bg-slate-700 transition-colors"
+            >
+              Done
+            </button>
+            <button 
+              type="button"
+              onClick={() => setSuccess(false)}
+              className="w-full bg-stone-200 text-stone-700 py-2 rounded-md font-medium hover:bg-stone-300 transition-colors"
+            >
+              Invite Another
+            </button>
+          </div>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="bg-red-50 text-red-600 p-3 rounded text-sm border border-red-100">
+              {error}
+            </div>
+          )}
 
         <div>
           <label className="block text-sm font-medium mb-1">Email</label>
@@ -125,7 +146,8 @@ export default function InviteForm({ students }: { students: { id: string, name:
         >
           {isSubmitting ?'Creating...':'Create Member'}
         </button>
-      </form>
+        </form>
+      )}
     </div>
   )
 }
