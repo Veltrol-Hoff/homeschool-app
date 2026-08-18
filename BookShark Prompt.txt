@@ -1,0 +1,41 @@
+Role & Objective:
+You are an expert data entry specialist and curriculum digitizer. I am uploading an image of a homeschool weekly schedule grid. Your goal is to extract the assignments into a chronological CSV.
+
+CRITICAL RULE: ZERO INFERENCE
+Do not "guess," auto-complete, or infer sequences. If Day 1 says "Chapter 1," do NOT assume Day 2 is "Chapter 2." You must individually analyze the exact text printed inside every single cell. If a cell says "chs. 2 & 3", type exactly that. If a cell is completely blank, you MUST output a hyphen -. Do not shift assignments into empty boxes.
+
+Step 1: Auto-Discover Row Anchors
+Scan the far-left column of the grid. Identify every Book Title, Resource, or Subject (e.g., "Map," "Timeline," "Calendar") listed in this specific image. List them out. These are your row anchors.
+
+Step 2: Literal Markdown Grid Alignment
+Recreate the schedule grid as a Markdown table to prove your spatial alignment.
+
+Columns must be: Resource, Day 1, Day 2, Day 3, Day 4.
+
+Using the row anchors from Step 1, scan row by row.
+
+Transcribe the exact text found in the intersecting cell. Apply the Zero Inference rule.
+
+Step 3: CSV Conversion & Math Rules
+Once the Markdown table is built, output a raw CSV block matching this exact header:
+sequence_order,day_number,title,item_type,external_url,estimated_minutes
+
+sequence_order: A continuous integer starting at 1.
+
+day_number: Look at the "Week" number at the top of the page. Calculate the absolute continuous school day number. Formula: ((Week Number - 1) * 4) + Column Day. (e.g., Week 1, Day 3 = Day 3. Week 2, Day 1 = Day 5).
+
+title: Combine the exact book name and the assignment into one string, followed by a space and the week and column day in the format W#D#. Example: "Read: The Boxcar Children chaps. II–III W1D2". Create a separate row for each book/activity on that day.
+
+item_type: Use "reading" for book assignments, "activity" for Calendar/Map/Timeline work.
+
+external_url: Leave blank.
+
+estimated_minutes: Estimate 20 for reading and 10 for activities.
+
+Output format:
+
+The list of discovered Row Anchors.
+
+The literal Markdown table.
+
+The raw CSV code block.

@@ -1,0 +1,242 @@
+Build the Curriculum & Standards Library screen from Section 2 Phase 1.5: a "My curricula" tab listing existing curricula as cards (title, subject, pacing type, item count) and an "Add curriculum" button that opens a form for title, subject, pacing type (calendar/mastery), and delivery mode (physical/online/hybrid).
+
+
+Build the Add Curriculum Items screen: a "one by one" entry mode (week/sequence number, item title, estimated minutes) and a "bulk paste" mode where pasting one item per line auto-numbers sequence order. Both modes write to curriculum_items under the selected curriculum.
+
+
+On each student's Subjects screen, add the ability to assign an existing curriculum to that student, with a start date. This is what anchors the pacing calculation — confirm this matches the pacing logic described in Section 2 Phase 1.5 before writing it.
+
+
+Build the Today screen from Section 2 Phase 1.5: for the selected student, show curriculum items due today based on their assigned curriculum's start date and pacing, as a checklist. Checking an item off creates a daily_logs entry pre-filled with that item's subject and estimated minutes (editable before saving), and advances the curriculum's sequence pointer. Include a "Log something else" button for ad hoc entries alongside the checklist, per the reverse-logging principle in Section 1.
+
+
+Run this locally, tell me what to check, and wait for my confirmation before moving to the next feature. Commit each working piece separately.
+
+
+
+
+
+Using Section 3 of docs/master-plan.md, write the Supabase SQL migration for: standards (framework, code, subject, grade_level, short_description), curriculum_item_standards (with ai_suggested and confirmed booleans), unit_studies, unit_study_templates, unit_study_objectives, and add shared_activity_group_id and unit_study_id columns to daily_logs. Include RLS consistent with Section 4.
+
+
+
+I'm going to upload the official Common Core and Wisconsin DPI standards PDFs. Parse them and generate a seed SQL file for the standards table: extract code, subject, grade level, and write a short paraphrased description in your own words for each — do not copy the source text verbatim, per the copyright note in Section 2/1.75 of docs/master-plan.md. Include a source_url field pointing to the official standard for full text.
+Pause here to ask me to give all the files they are located at: C:\Users\ewhof\Desktop\HomeSchool App\Standards
+
+
+When a curriculum item is created, call the Anthropic API with the item's description and the relevant slice of the standards table (filtered by subject and grade level) and get back a suggested standard code. Write this to curriculum_item_standards with ai_suggested = true, confirmed = false. Build a small inline UI on the curriculum item showing the suggestion with accept/edit/reject controls — per the "AI drafts, human confirms" principle in Section 1.
+
+
+
+Build the Standards Coverage Checklist section of the Compliance & Reports screen, per Section 2 Phase 1.75: for a selected student/subject/grade, list every relevant standard with a checkmark if any confirmed curriculum_item_standards link exists, and show the count of lessons tied to it.
+
+
+
+Update the Quick Log screen so the student field is a multi-select. On submit with multiple students selected, write one daily_logs row per student, all sharing a generated shared_activity_group_id, each still recording its own subject/duration/notes. Display linked shared entries together in any log list view.
+
+
+For the "Peer Teaching" log type, extend Quick Log to capture both a teaching student and a learning student in one entry, and write linked daily_logs rows for both — the teacher's row should default to a note like "taught [topic] to [learner]" and the learner's row to "learned [topic] from [teacher]," both editable.
+
+
+Build Unit Study Mode per Section 2 Phase 1.75: a starter library of unit_study_templates (seasons, life cycles, simple machines, geography/maps, community helpers) selectable to create a new unit_studies record, or a fully custom option. Once created, allow adding a differentiated unit_study_objectives entry per student under that topic. Logging time against the unit study should write to daily_logs with unit_study_id set, auto-splitting per student the same way shared logging does.
+
+
+
+Build the pacing radar described in Section 2 Phase 1.75: for each required subject, compute a weekly linear pace toward 875 hours by June 30 and compare against actual logged hours, plus the same comparison for curriculum pacing (calendar-paced items vs. weeks elapsed). Surface this as a traffic-light indicator (on pace / slightly behind / significantly behind) on both the Dashboard and Compliance screens.
+
+
+Run this locally, tell me what to check, and wait for my confirmation before the next feature. Commit each working piece separately.
+
+
+
+
+
+
+
+
+
+Phase 1.9 — Account & Access Management
+
+
+
+Add a status column (invited / active, default invited) to the profiles table. Confirm existing RLS policies restrict invite-related writes to rows where the requester's household_role = 'owner'.
+
+
+
+Build a server-side API route (not client-side, since this requires the Supabase service_role key) that lets an Owner invite a new account: takes an email, a role (co-owner or student), and for student role a linked_student_id. It should call Supabase's admin invite-by-email function, then create a matching profiles row with the chosen role/link and status = 'invited'. Reject the request server-side if the caller isn't an Owner.
+
+
+
+Build the Account Management screen per Section 2, Phase 1.9: list all accounts with role and status, an "Invite account" button opening a form (email, role, linked student if applicable), and a "Resend" action for pending invites. Only visible/accessible to the Owner role.
+
+
+
+Using Section 3 of docs/master-plan.md, write the Supabase SQL migration for trips, trip_students, media_attachments (with trip_id, log_id, is_portfolio_sample), narrations, benchmark_references, and benchmark_progress. Include RLS consistent with Section 4.
+
+
+
+Build the media upload component from Section 2 Phase 2: a photo/video grid attached to a log entry, unit study, or trip, uploading to the Supabase Storage media bucket, with a star toggle on each item to mark it is_portfolio_sample.
+
+
+
+Build the Trips & Vacations screen: a list/timeline of trips (title, location, date range, linked students, photo count, subject tags), a photo strip preview per trip, and a "Log a trip" flow that creates a trips record, links students via trip_students, and allows attaching media directly.
+
+
+
+Add a record button to reading-log entries that captures audio, uploads it, transcribes it via the Anthropic API, and stores both the audio URL and transcript in narrations. After transcription, show one optional follow-up prompt asking which comprehension skill it demonstrates (retelling, sequencing, etc.), writing to narrations.tagged_skill with tag_confirmed = false until reviewed in the Review Queue.
+
+
+
+Build the benchmark parity screen: for a student's grade level, list benchmark_references with a status toggle (Not Yet / Emerging / Demonstrated), writing to benchmark_progress. Frame this clearly in the UI as an informal comfort-check, not a compliance requirement — no wording implying it's legally required.
+
+Also update Section 3's data model listing to add status to the profiles table entry, and update Section 9's Build Order Checklist to add a new item: - [ ] Phase 1.9 — Account & Access Management between the Phase 1.75 and Phase 2 lines. Show me a diff before saving.
+
+Run this locally, tell me what to check, and wait for my confirmation before the next feature. Commit each working piece separately.
+
+
+
+
+
+Gate-check before this one: confirm your wife can fully log in and use the app as co-owner, and that photos/trips/narrations are all saving correctly. If that's solid, here's Phase 2.5.
+
+Phase 2.5 — Calendar & Google Calendar Sync
+
+
+
+Using Section 3 of docs/master-plan.md, write the Supabase SQL migration for google_calendar_connections (access_token and refresh_token stored encrypted), and add nullable google_event_id columns to daily_logs and curriculum_items. Include RLS so only the Owner can manage the calendar connection itself, while Co-owner can still view sync status.
+
+
+
+Build the Calendar screen from Section 2 Phase 2.5, month view: a standard month grid pulling from daily_logs and scheduled curriculum_items, showing small colored tags per day per student, plus trip/field-trip entries visually distinguished from regular lessons.
+
+
+
+Add week and day view toggles to the Calendar screen. Week view shows one row per day with time-blocked entries; day view reuses the existing Today checklist component so there's one source of truth for "what's happening today" rather than a duplicate implementation.
+
+
+
+Build the Google Calendar connect flow: an "Connect Google Calendar" button on a new Sync Settings screen that starts the OAuth flow using the credentials from .env.local, and on successful callback stores the access/refresh tokens (encrypted) in google_calendar_connections along with the connected account email. Only accessible to the Owner role, per Section 4.
+
+
+
+Build the Sync Settings screen from Section 2 Phase 2.5: shows the connected Google account, a dropdown to choose the target calendar, sync direction locked to "one-way (app to Google)" per our decision — don't build a two-way option, that's explicitly deferred to Phase 6 — and a summary of what's included (planned lessons, field trips, the PI-1206 deadline).
+
+
+
+Build the sync job that pushes planned curriculum_items due dates, trips, and the annual PI-1206 filing deadline (third Friday of September through October 15) to the connected Google Calendar as events. On each sync, check for an existing google_event_id before creating a new event — update the existing event instead of duplicating it. Trigger this on save of a relevant record, plus provide a manual "Sync now" button as a fallback.
+
+
+
+Run this locally, tell me what to check, and wait for my confirmation before the next feature. Commit each working piece separately.
+
+
+
+
+
+
+Phase 3 — AI-Assisted Grading + Closed-Loop Mastery Pacing
+
+
+
+Using Section 3 of docs/master-plan.md, write the Supabase SQL migration for work_samples (log_id, subject_id, image_url, ai_feedback, ai_suggested_score, confirmed_score, status default 'draft'). Include RLS consistent with Section 4 — students can create work_samples linked to their own logs but cannot set confirmed_score or change status to confirmed; only Owner/Co-owner can confirm.
+
+
+
+Build a "Photograph work" action reachable from a daily log entry: capture or upload a photo, save it to Supabase Storage, and create a work_samples row with status = 'draft'.
+
+
+
+When a work_samples row is created, call the Anthropic API with the image and the subject/grade context to generate ai_feedback (a few sentences of qualitative feedback) and ai_suggested_score (a mastery-level suggestion, not a rigid letter grade — appropriate for early grades). Store both on the row, keep status = 'draft' until reviewed.
+
+
+
+Build the Work Sample Review screen per Section 2 Phase 3: shows the photo, the AI-drafted feedback and suggested score side by side, editable text fields for the parent to adjust either before confirming, and a Confirm button that sets confirmed_score and flips status to 'confirmed'. This should also appear as an item type in the Review Queue from Section 2's cross-cutting feature.
+
+
+
+Extend the pacing radar logic from Phase 1.75: for curricula with pacing_type = 'mastery', use confirmed work_samples scores as a signal — if a student has multiple consecutive lower-mastery scores on the same curriculum item, flag it as "needs review" rather than counting it as behind-pace, distinct from calendar-paced subjects which use the existing linear pace comparison. Show this distinction clearly in the Compliance screen's traffic-light indicators.
+
+
+
+Run this locally, tell me what to check, and wait for my confirmation before the next feature. Commit each working piece separately.
+
+
+
+
+
+
+Phase 4 — Transcript System
+
+
+Using Section 3 of docs/master-plan.md, write the Supabase SQL migration for transcripts (student_id, academic_year_id, subject_id, credit_earned, grade_mark, confirmed_date). RLS per Section 4 — only Owner/Co-owner can insert or edit transcript rows; Student role gets read-only access to their own.
+
+
+
+Build a Transcript screen per Section 2 Phase 4: a form to add a confirmed entry (subject, credit earned, grade/mark, confirmation date) for a student's academic year, and a list view of all confirmed entries grouped by year. Nothing here is auto-populated from daily_logs — every entry is a deliberate, explicit action, per the "confirm, don't auto-update" decision.
+
+
+
+Build a separate, clearly-labeled "Draft preview" view, visually distinct from the confirmed transcript (e.g. a different background color or a prominent "not final" badge) that shows a what-if projection using current logged hours and confirmed work_samples scores. This view must never write to the transcripts table — it's read-only and disappears the moment you navigate away.
+
+
+
+Add a "Recalculate GPA" button to the confirmed Transcript view that computes GPA from confirmed transcript entries only, triggered manually rather than recalculating automatically on every page load — per the earlier decision to avoid a constantly-shifting live number.
+
+
+
+Run this locally, tell me what to check, and wait for my confirmation before the next feature. Commit each working piece separately.
+
+
+
+
+
+
+Gate-check: confirm transcript entries and the draft/preview view are both solid — this next phase pulls data from basically everything (hours, standards, curriculum, photos, transcripts), so it's a good final integration test of the whole build.
+
+Phase 5 — Year-End Portfolio: PDF + Highlight Slideshow
+
+
+
+Build the End-of-Year Export screen per Section 2 Phase 5: a per-student, per-academic-year form with checkboxes for hours summary, 6-subject checklist, standards coverage, curriculum completion, confirmed grades/transcript, and portfolio photos. Default all boxes checked except transcript, matching the earlier mockup.
+
+
+
+Build the PDF generation logic for the export: pull the selected sections' data for the chosen student/year, embed any media_attachments flagged is_portfolio_sample, and lay it out as a clean, multi-page document (use a library like @react-pdf/renderer or a server-side headless-browser approach — pick whichever fits this stack best). Trigger via the "Generate PDF" button and return a downloadable file.
+
+
+
+Build the highlight slideshow feature per Section 2 Phase 5: pull all media_attachments and narrations marked as portfolio samples for the selected student/year, sequence them with simple crossfade transitions, and use a browser-based tool (ffmpeg.wasm) to render an exportable video file. Keep this scoped exactly as described — no multi-clip editing, trimming, or music tracks; sequence and crossfade only.
+
+
+
+Add a "Preview slideshow" button that plays the sequence in-browser before committing to a full render/export, so it can be checked and re-ordered if needed without regenerating the whole file each time.
+
+
+
+Run this locally, tell me what to check, and wait for my confirmation before the next feature. Commit each working piece separately.
+
+
+
+
+
+
+____________________________________________________________________________  TODO_______________________________________________________
+
+
+
+
+
+
+After Phase 5 — final wrap-up prompts
+
+This is the last build phase in the roadmap, so once it's working, close out with these:
+
+49. Domain connection
+
+Walk me through connecting the app's Vercel deployment to my new GoDaddy domain as a subdomain, per Section 5 of docs/master-plan.md. Tell me exactly what DNS record to add in GoDaddy and confirm once SSL is issued.
+
+
+Do a full pass through every phase in Section 9's Build Order Checklist. For each one, list what should be tested manually (not just "does it run") to confirm it's actually working correctly end to end, so I can verify the whole app before considering this done.
+
+
+Update Section 9 of docs/master-plan.md, checking off every phase now confirmed working, and note today's date next to each as the completion date.

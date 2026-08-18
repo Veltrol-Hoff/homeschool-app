@@ -71,20 +71,7 @@ export default function AddCurriculumButton({ subjects, students }: { subjects: 
                 />
               </div>
 
-              <div>
-                <label htmlFor="student_id"className="block text-sm font-medium mb-1">Student</label>
-                <select 
-                  id="student_id"
-                  name="student_id"
-                  required
-                  className="w-full rounded-md border-stone-300 shadow-sm focus:border-slate-500 focus:ring-slate-500    p-2.5 border"
-                >
-                  <option value="">Select student...</option>
-                  {students.map(s => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-              </div>
+
 
               <div>
                 <label htmlFor="subject_id"className="block text-sm font-medium mb-1">Subject</label>

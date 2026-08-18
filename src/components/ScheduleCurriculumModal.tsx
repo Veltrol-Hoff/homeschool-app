@@ -77,7 +77,7 @@ export default function ScheduleCurriculumModal({
             <label className="block text-sm font-medium mb-2">Students</label>
             {students.length === 0 ? (
               <p className="text-sm text-stone-500">
-                You must assign this curriculum to a student first (use the Edit button on the library page).
+                You have no students on your account. Please add a student before scheduling.
               </p>
             ) : (
               <div className="space-y-2 max-h-40 overflow-y-auto border border-stone-200 rounded-md p-3">

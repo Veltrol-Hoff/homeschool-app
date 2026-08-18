@@ -134,3 +134,32 @@ export async function generate36WeekSchedule(curriculumId: string, nextSequence:
   return { success: true }
 }
 
+export async function deleteCurriculumItem(curriculumId: string, itemId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error("Unauthorized")
+
+  const { error } = await supabase.from('curriculum_items').delete().eq('id', itemId).eq('curriculum_id', curriculumId)
+
+  if (error) {
+    throw new Error(`Failed to delete item: ${error.message}`)
+  }
+
+  revalidatePath(`/curriculum/${curriculumId}/items`)
+  return { success: true }
+}
+
+export async function deleteAllCurriculumItems(curriculumId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error("Unauthorized")
+
+  const { error } = await supabase.from('curriculum_items').delete().eq('curriculum_id', curriculumId)
+
+  if (error) {
+    throw new Error(`Failed to delete items: ${error.message}`)
+  }
+
+  revalidatePath(`/curriculum/${curriculumId}/items`)
+  return { success: true }
+}

@@ -12,12 +12,11 @@ export async function addCurriculum(formData: FormData) {
 
   const title = formData.get('title') as string
   const subject_id = formData.get('subject_id') as string
-  const student_id = formData.get('student_id') as string
   const pacing_type = formData.get('pacing_type') as string
   const delivery_mode = formData.get('delivery_mode') as string
   const course_name = (formData.get('course_name') as string) || null
 
-  if (!title || !subject_id || !student_id || !pacing_type || !delivery_mode) {
+  if (!title || !subject_id || !pacing_type || !delivery_mode) {
     throw new Error("All fields are required")
   }
 
@@ -30,20 +29,25 @@ export async function addCurriculum(formData: FormData) {
     throw new Error(`Failed to add curriculum: ${currError.message || JSON.stringify(currError)}`)
   }
 
-  const { error: linkError } = await supabase.from('student_curricula').insert([{
-    student_id,
-    curriculum_id: curriculum.id
-  }])
+  revalidatePath('/curriculum')
+  return { success: true }
+}
 
-  if (linkError) {
-    console.error("Link error:", linkError)
-    throw new Error(`Failed to link curriculum to student: ${linkError.message || JSON.stringify(linkError)}`)
+export async function deleteCurriculum(curriculumId: string) {
+  const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error("Unauthorized")
+
+  const { error } = await supabase.from('curricula').delete().eq('id', curriculumId)
+
+  if (error) {
+    throw new Error(`Failed to delete curriculum: ${error.message || JSON.stringify(error)}`)
   }
 
   revalidatePath('/curriculum')
   return { success: true }
 }
-
 export async function scheduleCurriculum(curriculumId: string, formData: FormData) {
   const supabase = await createClient()
 
@@ -183,10 +187,9 @@ export async function updateCurriculum(curriculumId: string, formData: FormData)
   const delivery_mode = formData.get('delivery_mode') as string
   const course_name = (formData.get('course_name') as string) || null
   const status = formData.get('status') as string
-  const student_ids = formData.getAll('student_id') as string[]
 
-  if (!title || !subject_id || !pacing_type || !delivery_mode || !status || student_ids.length === 0) {
-    throw new Error("All fields and at least one student are required")
+  if (!title || !subject_id || !pacing_type || !delivery_mode || !status) {
+    throw new Error("All fields are required")
   }
 
   // Update curriculum details
@@ -196,20 +199,6 @@ export async function updateCurriculum(curriculumId: string, formData: FormData)
 
   if (currError) {
     throw new Error(`Failed to update curriculum: ${currError.message || JSON.stringify(currError)}`)
-  }
-
-  // Update student links
-  await supabase.from('student_curricula').delete().eq('curriculum_id', curriculumId)
-  
-  const studentLinks = student_ids.map(id => ({
-    student_id: id,
-    curriculum_id: curriculumId
-  }))
-
-  const { error: linkError } = await supabase.from('student_curricula').insert(studentLinks)
-
-  if (linkError) {
-    throw new Error(`Failed to update student links: ${linkError.message || JSON.stringify(linkError)}`)
   }
 
   revalidatePath('/curriculum')

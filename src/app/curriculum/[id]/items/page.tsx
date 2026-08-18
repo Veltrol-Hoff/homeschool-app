@@ -4,6 +4,8 @@ import Link from 'next/link'
 import AddItemsClient from './AddItemsClient'
 import AiStandardSuggestion from '@/components/AiStandardSuggestion'
 import ScheduleCurriculumButton from '@/components/ScheduleCurriculumButton'
+import DeleteItemButton from './DeleteItemButton'
+import DeleteAllItemsButton from './DeleteAllItemsButton'
 
 export default async function CurriculumItemsPage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient()
@@ -15,7 +17,7 @@ export default async function CurriculumItemsPage({ params }: { params: Promise<
   // Fetch curriculum details
   const { data: curriculum } = await supabase
     .from('curricula')
-    .select('*, subjects(name), student_curricula(students(id, name))')
+    .select('*, subjects(name)')
     .eq('id', id)
     .single()
 
@@ -38,7 +40,12 @@ export default async function CurriculumItemsPage({ params }: { params: Promise<
     ? Math.max(...items.map(i => i.sequence_order)) + 1 
     : 1
     
-  const assignedStudents = curriculum.student_curricula?.map((sc: any) => sc.students).filter(Boolean) || []
+  const { data: allStudents } = await supabase
+    .from('students')
+    .select('id, name')
+    .order('name')
+  
+  const assignedStudents = allStudents || []
 
   return (
     <div className="min-h-screen bg-transparent text-stone-900 p-4 sm:p-8">
@@ -64,7 +71,10 @@ export default async function CurriculumItemsPage({ params }: { params: Promise<
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
           <div className="lg:col-span-2 order-2 lg:order-1">
-            <h3 className="font-bold text-lg mb-4">Curriculum Items ({items?.length || 0})</h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold text-lg">Curriculum Items ({items?.length || 0})</h3>
+              <DeleteAllItemsButton curriculumId={curriculum.id} itemCount={items?.length || 0} />
+            </div>
             
             {!items || items.length === 0 ? (
               <div className="text-center py-12 bg-white  rounded-xl shadow-sm border border-stone-100">
@@ -101,6 +111,7 @@ export default async function CurriculumItemsPage({ params }: { params: Promise<
                             existingSuggestion={suggestion} 
                           />
                         )}
+                        <DeleteItemButton curriculumId={curriculum.id} itemId={item.id} />
                       </div>
                     </div>
                   )

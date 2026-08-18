@@ -26,14 +26,15 @@ export default function SubjectForm({
     setIsSubmitting(true)
     setError(null)
     
-    const formData = new FormData(e.currentTarget)
+    const form = e.currentTarget
+    const formData = new FormData(form)
     formData.append('color_hex', selectedColor)
     formData.append('icon_name', selectedIcon)
     
     try {
       if (mode ==='create') {
         await createSubject(formData)
-        e.currentTarget.reset()
+        form.reset()
         setSelectedColor(COLORS[0])
         setSelectedIcon(ICONS[0])
       } else {

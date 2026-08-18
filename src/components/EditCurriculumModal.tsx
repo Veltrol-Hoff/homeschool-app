@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from'react'
-import { updateCurriculum } from'@/app/curriculum/actions'
+import { updateCurriculum, deleteCurriculum } from'@/app/curriculum/actions'
 
 interface Subject {
   id: string
@@ -38,30 +38,14 @@ export default function EditCurriculumModal({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const initialStudentIds = curriculum.student_curricula?.map(sc => sc.student_id) || []
-  const [selectedStudents, setSelectedStudents] = useState<string[]>(initialStudentIds)
 
-  function toggleStudent(id: string) {
-    if (selectedStudents.includes(id)) {
-      setSelectedStudents(selectedStudents.filter(s => s !== id))
-    } else {
-      setSelectedStudents([...selectedStudents, id])
-    }
-  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setIsSubmitting(true)
     setError(null)
     
-    if (selectedStudents.length === 0) {
-      setError("Please select at least one student.")
-      setIsSubmitting(false)
-      return
-    }
-
     const formData = new FormData(e.currentTarget)
-    selectedStudents.forEach(id => formData.append('student_id', id))
     
     try {
       const result = await updateCurriculum(curriculum.id, formData)
@@ -71,6 +55,21 @@ export default function EditCurriculumModal({
     } catch (err: any) {
       setError(err.message ||"Failed to update curriculum")
     } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  async function handleDelete() {
+    if (!confirm('Are you sure you want to delete this curriculum? All items and assignments will be lost. This cannot be undone.')) return
+    setIsSubmitting(true)
+    setError(null)
+    try {
+      const result = await deleteCurriculum(curriculum.id)
+      if (result.success) {
+        onClose()
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to delete curriculum")
       setIsSubmitting(false)
     }
   }
@@ -115,22 +114,7 @@ export default function EditCurriculumModal({
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-2">Assign to Students</label>
-            <div className="space-y-2 border border-stone-300  rounded-md p-3 max-h-32 overflow-y-auto">
-              {students.map(s => (
-                <label key={s.id} className="flex items-center gap-2 cursor-pointer">
-                  <input 
-                    type="checkbox"
-                    checked={selectedStudents.includes(s.id)}
-                    onChange={() => toggleStudent(s.id)}
-                    className="rounded border-stone-300 text-slate-600 focus:ring-slate-500"
-                  />
-                  <span>{s.name}</span>
-                </label>
-              ))}
-            </div>
-          </div>
+
 
           <div>
             <label htmlFor="subject_id"className="block text-sm font-medium mb-1">Subject</label>
@@ -197,21 +181,31 @@ export default function EditCurriculumModal({
             </select>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-stone-200">
+          <div className="flex justify-between pt-4 border-t border-stone-200">
             <button 
               type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-stone-600 hover:text-stone-900"
-            >
-              Cancel
-            </button>
-            <button 
-              type="submit"
+              onClick={handleDelete}
               disabled={isSubmitting}
-              className="px-4 py-2 bg-slate-600 text-white rounded-md shadow-sm hover:bg-slate-700 font-medium text-sm transition-colors disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50"
             >
-              {isSubmitting ?'Saving...':'Save Changes'}
+              Delete Curriculum
             </button>
+            <div className="flex gap-3">
+              <button 
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-sm font-medium text-stone-600 hover:text-stone-900"
+              >
+                Cancel
+              </button>
+              <button 
+                type="submit"
+                disabled={isSubmitting}
+                className="px-4 py-2 bg-slate-600 text-white rounded-md shadow-sm hover:bg-slate-700 font-medium text-sm transition-colors disabled:opacity-50"
+              >
+                {isSubmitting ?'Saving...':'Save Changes'}
+              </button>
+            </div>
           </div>
         </form>
       </div>

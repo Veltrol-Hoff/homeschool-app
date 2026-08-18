@@ -1,0 +1,45 @@
+I have reviewed the files and context provided. Here is a comprehensive, detailed breakdown of the documents, PDFs, and software development guides you attached.
+
+1. Image Digitization & URL Review
+Images (20260805_*.jpg): The system's extraction tool was unable to pull any readable text or digitized data from the provided image files (they registered as empty data blocks in the backend). If you are able to upload them again in a different format or as a single PDF, I would be happy to read them for you.
+
+Math-U-See Primer Placement (URL): The Math-U-See Primer placement typically assesses whether a young student (usually Pre-K or Kindergarten) is ready to begin their foundational math program. The placement focuses on evaluating if the student can count to 10, recognize numerals, and follow basic instructions. If the student can already write numbers, count to 20 effortlessly, and understands the concept of "plus one," they are often placed in the next level up (Alpha).
+
+2. BookShark Curriculum PDFs
+The PDFs are sample Instructor's Guides and Activity Sheets for various BookShark homeschool curriculum levels.
+
+Science A (2024, 3-Week Sample): This guide covers early elementary science with a focus on weather and the Earth. It operates on a 4-day schedule. Lessons teach children about the continents, the layers of the Earth (crust, mantle, core), the concept of day and night (using a flashlight and globe experiment), and the water cycle (evaporation, condensation, precipitation). It includes hands-on experiments like creating a "Water Cycle in a Bag" by taping a plastic bag of water to a sunny window. Student activity sheets ask them to label parts of the water cycle and identify what causes weather (heat, air, water).  
+PDF
++ 4
+
+Language Arts 1 (2026, 3-Week Sample): This guide focuses heavily on early literacy, phonics, and spelling. It covers short 'a' words (bat, cat, fat, rat) and basic sight words (the, his, not). It schedules reading practice using I Can Read It! Book 1 (with stories like "Pat" and "A Mat and a Hat"). It also introduces writing mechanics, such as capitalization rules, copying sentences, writing dialog using quotation marks, and a "Family Portrait" narration exercise where the parent acts as a scribe to dictate the child's spoken story.  
+PDF
++ 4
+
+Intro to the World: Cultures (AHB-2022 Sample): This is a History and Geography guide (History K / Year 1) that covers early civilizations and cultures. The schedule includes readings from Living Long Ago, My Father's Dragon, and poetry from The Llama Who Had No Pajama. Activities include making salt dough, using a map to locate places like London and South Wales, and throwing a Roman-style dinner party where the family eats on the floor with cushions.  
+PDF
++ 4
+
+3. Homeschool App Software Development Guides
+These markdown and text files contain advanced "Prompt Engineering" blueprints. They are designed to instruct an autonomous AI coding agent (referred to as "Antigravity") to build a custom Next.js and Supabase homeschool management application.
+
+Epic 1 (Scheduling & Calendar Engine): Instructs the AI to separate "planned" vs "completed" dates in the database and build a "Cascading Bump/Snooze" feature. This allows a parent to push scheduled items forward (skipping weekends/holidays) if a child is sick without overwriting fixed events.
+
+
+Epic 2 (Expanded Activities & Trips): Expands the app to support dynamic, color-coded subjects (e.g., Extracurriculars, Physical Performance, Volunteering) and adds a formal "Field Trip Report" form to log vacations and roadschooling.
+
+
+Epic 3 (Student Experience & Gamification): Directs the AI to create a kid-friendly dashboard with a "Living Bio" and a "Yes Day" gamification reward system that tracks task completion.
+
+
+Epic 4 (Bulk Upload): Adds CSV/Excel parsing functionality so parents can bulk-upload curriculum data rather than manually typing in hundreds of lessons.
+
+
+Epic 6 & 8 (Transcripts & Living Bios): Details the generation of a college-compliant (UW-Madison standard) PDF transcript. Epic 8 introduces an AI workflow using the Anthropic API to synthesize a student's chronological "Living Bio" text entries into a cohesive 3-4 sentence narrative summary for their end-of-year portfolio.  
+PDF
++ 3
+
+Antigravity IDE Guide: A short manual explaining how to give the coding agent full operational access. It recommends using the "Projects" feature to break out of single-folder limits, using the /goal command for autonomous execution, and explicitly instructing the agent to run the terminal and browser to capture UI screenshots as verification artifacts.  
+PDF
+
+Let me know if you would like me to dive deeper into any of the BookShark lessons, the application development prompts, or if you'd like to try re-uploading the images!

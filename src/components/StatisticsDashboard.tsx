@@ -6,8 +6,8 @@ import { subDays, format } from 'date-fns'
 
 export default function StatisticsDashboard({ logs }: { logs: any[] }) {
   // --- Data Processing ---
-  
-  const completedLogs = logs.filter(l => l.log_type === 'Completed')
+  const completedTypes = ['Completed', 'Field Trip', 'Spontaneous']
+  const completedLogs = logs.filter(l => completedTypes.includes(l.log_type))
   
   // 1. On-Time Completion Rate
   const onTimeLogs = completedLogs.filter(l => !l.original_date || l.date === l.original_date)
@@ -67,9 +67,10 @@ export default function StatisticsDashboard({ logs }: { logs: any[] }) {
     const dateStr = `${yy}-${mm}-${dd}`
     const dayLogs = logs.filter(l => l.date === dateStr)
     const planned = dayLogs.filter(l => l.log_type === 'Planned').length
-    const completed = dayLogs.filter(l => l.log_type === 'Completed').length
+    const completed = dayLogs.filter(l => completedTypes.includes(l.log_type)).length
     
-    if (planned + completed > localMax) localMax = planned + completed
+    const dayMax = Math.max(planned, completed)
+    if (dayMax > localMax) localMax = dayMax
     
     velocityData.push({ label: format(d, 'EEE'), planned, completed })
   }
