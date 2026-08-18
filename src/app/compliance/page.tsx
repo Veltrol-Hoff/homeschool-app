@@ -5,6 +5,7 @@ import ComplianceExportAllButton from '@/components/ComplianceExportAllButton'
 import PacingRadar from '@/components/PacingRadar'
 import SubjectPieChart from '@/components/SubjectPieChart'
 import StandardsGapDashboard from '@/components/StandardsGapDashboard'
+import PI1206Uploader from '@/components/PI1206Uploader'
 import fs from 'fs'
 
 const WI_REQUIRED_SUBJECTS = [
@@ -24,9 +25,12 @@ export default async function CompliancePage() {
   // Fetch data
   const { data: students } = await supabase.from('students').select('*').order('birth_date', { ascending: false })
   const { data: academicYears } = await supabase.from('academic_years').select('*')
+  const activeYear = academicYears?.find(y => y.is_active)
+  // Fetch PI-1206 forms
+  const { data: pi1206Forms } = await supabase.from('pi_1206_forms').select('*')
   const { data: studentYears } = await supabase.from('student_academic_years').select('*')
   const { data: subjects } = await supabase.from('subjects').select('*')
-  const { data: logs } = await supabase.from('daily_logs').select('*')
+  const { data: logs } = await supabase.from('daily_logs').select('*').limit(10000)
   
   // Fetch global compliance settings
   const { data: settingsData } = await supabase.from('school_settings').select('*').single()
@@ -110,7 +114,13 @@ export default async function CompliancePage() {
     // Since our dummy data might not have the exact names, we do a loose check
     const requiredSubjectStatus = WI_REQUIRED_SUBJECTS.map(reqSub => {
       // Find a matching subject in our DB by name (case insensitive partial match for robustness in dummy data)
-      const dbSub = subjectStats.find(s => s.name.toLowerCase().includes(reqSub.toLowerCase()) || reqSub.toLowerCase().includes(s.name.toLowerCase()))
+      const dbSub = subjectStats.find(s => {
+        const sName = s.name.toLowerCase()
+        const rName = reqSub.toLowerCase()
+        if (sName.includes(rName) || rName.includes(sName)) return true
+        if (rName === 'language arts' && sName.includes('languare')) return true
+        return false
+      })
       const hasHours = dbSub ? dbSub.totalHours > 0 || dbSub.logCount > 0 : false
       return { name: reqSub, completed: hasHours }
     })
@@ -196,6 +206,19 @@ export default async function CompliancePage() {
                 <span className="text-xl">📋</span> Annual Form
               </h3>
               <p className="text-sm text-stone-600  mt-1">You must file form PI-1206 online each year with the <a href="https://dpi.wi.gov/parental-education-options/home-based"target="_blank"rel="noreferrer"className="text-slate-600 hover:underline font-medium">Wisconsin Department of Public Instruction</a>.</p>
+              
+              <div className="space-y-3 mt-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar bg-stone-50/50 border border-stone-100 rounded-lg p-2">
+                {Array.from({ length: 16 }, (_, i) => 2026 + i).map(year => {
+                  const form = pi1206Forms?.find(f => f.year === year)
+                  return (
+                    <PI1206Uploader 
+                      key={year} 
+                      year={year} 
+                      existingUrl={form?.file_url} 
+                    />
+                  )
+                })}
+              </div>
             </div>
           </div>
         </div>

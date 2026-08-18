@@ -4,7 +4,7 @@ import { useState, useTransition, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOfWeek, isSameDay, isSameMonth, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays } from 'date-fns'
 import DailyChecklist from '@/components/DailyChecklist'
-import { bumpDay, toggleLogCompletion } from '@/app/calendar/actions'
+import { bumpDay, bumpBackDay, toggleLogCompletion } from '@/app/calendar/actions'
 import * as LucideIcons from 'lucide-react'
 
 // Simple helper to render a lucide icon from string name
@@ -36,7 +36,9 @@ export default function CalendarView({
   
   const [currentDate, setCurrentDate] = useState(new Date())
   const [isPending, startTransition] = useTransition()
+  const [completionPrompt, setCompletionPrompt] = useState<{id: string, currentlyCompleted: boolean} | null>(null)
   const [bumpingDate, setBumpingDate] = useState<string | null>(null)
+  const [bumpingBackDate, setBumpingBackDate] = useState<string | null>(null)
   
   // We no longer manage the modal locally. GlobalModalManager handles it.
 
@@ -59,17 +61,43 @@ export default function CalendarView({
     })
   }
 
+  const handleBumpBack = (dateStr: string) => {
+    if (!students || students.length === 0) return
+
+    if (!confirm(`Are you sure you want to pull all planned coursework for ALL students starting from ${dateStr} BACK by one day?`)) return
+    
+    setBumpingBackDate(dateStr)
+    startTransition(async () => {
+      try {
+        for (const s of students) {
+          await bumpBackDay(s.id, dateStr)
+        }
+        alert("Bump Back completed successfully for all students.")
+      } catch (err: any) {
+        alert("Error: " + err.message)
+      }
+      setBumpingBackDate(null)
+    })
+  }
+
   function handleToggleCompletion(id: string, currentlyCompleted: boolean, logDate: string) {
     if (!currentlyCompleted && logDate !== format(new Date(), 'yyyy-MM-dd')) {
-      const moveToToday = confirm("Do you want to move this task to today before checking it off?")
-      startTransition(async () => {
-        await toggleLogCompletion(id, !currentlyCompleted, moveToToday)
-      })
+      setCompletionPrompt({ id, currentlyCompleted })
     } else {
       startTransition(async () => {
         await toggleLogCompletion(id, !currentlyCompleted, false)
       })
     }
+  }
+
+  function handlePromptResponse(moveToToday: boolean | null) {
+    if (!completionPrompt) return
+    if (moveToToday !== null) {
+      startTransition(async () => {
+        await toggleLogCompletion(completionPrompt.id, !completionPrompt.currentlyCompleted, moveToToday)
+      })
+    }
+    setCompletionPrompt(null)
   }
 
   const monthStart = startOfMonth(currentDate)
@@ -91,13 +119,19 @@ export default function CalendarView({
     dayLogsRaw.forEach(log => {
       if (log.shared_activity_group_id) {
         if (!groupMap.has(log.shared_activity_group_id)) {
-          groupMap.set(log.shared_activity_group_id, { ...log, studentsInGroup: [log.students] })
-          groupedLogs.push(groupMap.get(log.shared_activity_group_id))
+          const newGroup = { ...log, studentsInGroup: log.students ? [{ ...log.students, student_id_ref: log.student_id }] : [] }
+          groupMap.set(log.shared_activity_group_id, newGroup)
+          groupedLogs.push(newGroup)
         } else {
-          groupMap.get(log.shared_activity_group_id).studentsInGroup.push(log.students)
+          if (log.students) {
+            const existingGroup = groupMap.get(log.shared_activity_group_id)
+            if (!existingGroup.studentsInGroup.some((s: any) => s.student_id_ref === log.student_id)) {
+              existingGroup.studentsInGroup.push({ ...log.students, student_id_ref: log.student_id })
+            }
+          }
         }
       } else {
-        groupedLogs.push({ ...log, studentsInGroup: [log.students] })
+        groupedLogs.push({ ...log, studentsInGroup: log.students ? [{ ...log.students, student_id_ref: log.student_id }] : [] })
       }
     })
 
@@ -151,8 +185,13 @@ export default function CalendarView({
       <div className="p-4 border-b border-stone-100  flex flex-col sm:flex-row justify-between items-center gap-4">
         
         {/* Multi-Student Filter Toggle */}
-        <div className="flex flex-wrap items-center gap-2">
-          {students.map(s => {
+        <div className="flex flex-col gap-2">
+          {/* DEBUG INFO */}
+          <div className="text-xs text-red-500 font-mono">
+            Debug: total logs={logs?.length || 0}, today dayLogsRaw={logs?.filter(l => l.date === format(new Date(), 'yyyy-MM-dd'))?.length || 0}, studentsSelected={selectedStudentIds.length}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {students.map(s => {
             const isSelected = selectedStudentIds.includes(s.id)
             const accentColor = s.display_color ||'#10B981'
             return (
@@ -171,6 +210,7 @@ export default function CalendarView({
               </button>
             )
           })}
+          </div>
         </div>
 
         <div className="flex items-center gap-4">
@@ -290,12 +330,11 @@ export default function CalendarView({
                         const subjColor = l.subjects?.color_hex || l.activities?.color ||'#10B981'
                         const subjIcon = l.subjects?.icon_name || l.activities?.icon ||'BookOpen'
                         const isCompleted = l.log_type ==='Completed'
-                        const studentColors = l.studentsInGroup.map((s: any) => s?.display_color ||'#10B981')
+                        const studentColors = l.studentsInGroup?.map((s: any) => s?.display_color || '#10B981') || ['#10B981']
                         
                         let bgStyle = studentColors[0]
                         if (studentColors.length > 1) {
-                          const step = 100 / studentColors.length
-                          const stops = studentColors.map((c: string, i: number) => `${c} ${i * step}%, ${c} ${(i + 1) * step}%`).join(',')
+                          const stops = studentColors.map((c: string, i: number) => `${c} ${(i * 100) / studentColors.length}%, ${c} ${((i + 1) * 100) / studentColors.length}%`).join(', ')
                           bgStyle = `linear-gradient(to bottom, ${stops})`
                         }
                         if (isCompleted) {
@@ -381,11 +420,10 @@ export default function CalendarView({
                         ))}
                         {dayLogs.map((l, idx) => {
                           const isCompleted = l.log_type === 'Completed'
-                          const studentColors = l.studentsInGroup.map((s: any) => s?.display_color || '#10B981')
+                          const studentColors = l.studentsInGroup?.map((s: any) => s?.display_color || '#10B981') || ['#10B981']
                           let bgStyle = studentColors[0]
                           if (studentColors.length > 1) {
-                            const step = 100 / studentColors.length
-                            const stops = studentColors.map((c: string, i: number) => `${c} ${i * step}%, ${c} ${(i + 1) * step}%`).join(',')
+                            const stops = studentColors.map((c: string, i: number) => `${c} ${(i * 100) / studentColors.length}%, ${c} ${((i + 1) * 100) / studentColors.length}%`).join(', ')
                             bgStyle = `linear-gradient(to bottom, ${stops})`
                           }
                           return (
@@ -418,13 +456,25 @@ export default function CalendarView({
                     <p className={`font-bold hover:underline ${isToday ?'text-slate-600':''}`}>{format(day,'EEEE')}</p>
                     <p className="text-sm text-stone-500 mb-2">{format(day,'MMM d')}</p>
                     {dayLogs.some(l => l.log_type ==='Planned' && l.subject_id) && (
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); handleBump(format(day,'yyyy-MM-dd')) }}
-                        disabled={isPending && bumpingDate === format(day,'yyyy-MM-dd')}
-                        className="text-xs font-medium px-2 py-1 bg-stone-200 hover:bg-stone-300   text-stone-800  rounded transition-colors disabled:opacity-50 flex items-center gap-1"
-                      >
-                        {isPending && bumpingDate === format(day,'yyyy-MM-dd') ?'Bumping...':'Bump ➡️'}
-                      </button>
+                      <div className="flex gap-1">
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleBumpBack(format(day,'yyyy-MM-dd')) }}
+                          disabled={isPending && bumpingBackDate === format(day,'yyyy-MM-dd')}
+                          className="text-xs font-medium px-2 py-1 bg-stone-200 hover:bg-stone-300 text-stone-800 rounded transition-colors disabled:opacity-50 flex items-center gap-1"
+                          title="Pull future coursework back to this day"
+                        >
+                          <LucideIcons.ArrowLeft size={12} />
+                          {isPending && bumpingBackDate === format(day,'yyyy-MM-dd') ? 'Pulling...' : 'Pull Back'}
+                        </button>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleBump(format(day,'yyyy-MM-dd')) }}
+                          disabled={isPending && bumpingDate === format(day,'yyyy-MM-dd')}
+                          className="text-xs font-medium px-2 py-1 bg-stone-200 hover:bg-stone-300 text-stone-800 rounded transition-colors disabled:opacity-50 flex items-center gap-1"
+                          title="Push coursework to the next valid school day"
+                        >
+                          {isPending && bumpingDate === format(day,'yyyy-MM-dd') ? 'Bumping...' : 'Bump →'}
+                        </button>
+                      </div>
                     )}
                   </div>
                   <div className="flex-1 space-y-2">
@@ -468,12 +518,11 @@ export default function CalendarView({
                       const subjColor = l.subjects?.color_hex || l.activities?.color ||'#10B981'
                       const subjIcon = l.subjects?.icon_name || l.activities?.icon ||'BookOpen'
                       const isCompleted = l.log_type ==='Completed'
-                      const studentColors = l.studentsInGroup.map((s: any) => s?.display_color ||'#10B981')
+                      const studentColors = l.studentsInGroup?.map((s: any) => s?.display_color || '#10B981') || ['#10B981']
                       
                       let bgStyle = studentColors[0]
                       if (studentColors.length > 1) {
-                        const step = 100 / studentColors.length
-                        const stops = studentColors.map((c: string, i: number) => `${c} ${i * step}%, ${c} ${(i + 1) * step}%`).join(',')
+                        const stops = studentColors.map((c: string, i: number) => `${c} ${(i * 100) / studentColors.length}%, ${c} ${((i + 1) * 100) / studentColors.length}%`).join(', ')
                         bgStyle = `linear-gradient(to bottom, ${stops})`
                       }
                       if (isCompleted) {
@@ -616,6 +665,38 @@ export default function CalendarView({
       </div>
 
       {/* Local modal removed in favor of GlobalModalManager in layout.tsx */}
+      {completionPrompt && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-sm overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-stone-200 bg-stone-50">
+              <h3 className="font-bold text-lg text-stone-900">Move to Today?</h3>
+            </div>
+            <div className="p-4 text-stone-600 text-sm">
+              Since this task was scheduled for a different day, do you want to move it to today's date before checking it off?
+            </div>
+            <div className="p-4 bg-stone-50 border-t border-stone-200 flex justify-end gap-3">
+              <button 
+                onClick={() => handlePromptResponse(null)}
+                className="px-4 py-2 text-stone-500 hover:text-stone-700 font-medium text-sm transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => handlePromptResponse(false)}
+                className="px-4 py-2 bg-stone-200 hover:bg-stone-300 text-stone-800 rounded-md font-medium text-sm transition-colors"
+              >
+                No
+              </button>
+              <button 
+                onClick={() => handlePromptResponse(true)}
+                className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-md font-medium text-sm transition-colors"
+              >
+                Yes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -2,7 +2,7 @@
 
 import { requireAuth } from'@/utils/supabase/server'
 import { revalidatePath } from'next/cache'
-import { getNextValidSchoolDay, Holiday, Trip } from'@/utils/dateMath'
+import { getNextValidSchoolDay, getPreviousValidSchoolDay, Holiday, Trip } from'@/utils/dateMath'
 import { parseISO, format, addDays, addWeeks, addMonths } from'date-fns'
 
 export async function bumpDay(studentId: string, targetDateStr: string) {
@@ -108,6 +108,94 @@ export async function bumpDay(studentId: string, targetDateStr: string) {
   return { success: true }
 }
 
+export async function bumpBackDay(studentId: string, targetDateStr: string) {
+  const { supabase } = await requireAuth()
+
+  // 1. Fetch holidays
+  const { data: holidays } = await supabase.from('holidays').select('*')
+  
+  // 2. Fetch trips for this student
+  const { data: tripStudents } = await supabase
+    .from('trip_students')
+    .select('trip_id, trips(id, start_date, end_date)')
+    .eq('student_id', studentId)
+
+  const trips: Trip[] = (tripStudents || []).map(ts => ts.trips).filter(t => t !== null) as unknown as Trip[]
+
+  // 3. Fetch all future Planned logs >= targetDateStr
+  // We want to push targetDateStr into its previous school day, so we need logs starting from targetDateStr.
+  const { data: plannedLogs, error: logError } = await supabase
+    .from('daily_logs')
+    .select('id, date, original_date')
+    .eq('student_id', studentId)
+    .eq('log_type', 'Planned')
+    .is('activity_id', null)
+    .gte('date', targetDateStr)
+    .order('date', { ascending: true })
+
+  if (logError || !plannedLogs) {
+    throw new Error("Failed to fetch logs")
+  }
+
+  if (plannedLogs.length === 0) {
+    return { success: true, message: "No future planned tasks to bump back." }
+  }
+
+  // 4. Group logs by date
+  const logsByDate: Record<string, string[]> = {}
+  plannedLogs.forEach(log => {
+    if (!logsByDate[log.date]) logsByDate[log.date] = []
+    logsByDate[log.date].push(log.id)
+  })
+
+  // 5. The Pull Cascade Algorithm
+  const updates: { id: string, newDate: string, originalDate: string | null, oldDate: string }[] = []
+  const logMap = new Map(plannedLogs.map(l => [l.id, l]))
+  
+  // Start by pulling from targetDateStr into the previous valid school day
+  let pullTargetDateStr = format(getPreviousValidSchoolDay(parseISO(targetDateStr), holidays as Holiday[] || [], trips), 'yyyy-MM-dd')
+  let dateToPullFrom = targetDateStr
+  
+  while (true) {
+    const logsOnDateToPull = logsByDate[dateToPullFrom] || []
+    if (logsOnDateToPull.length === 0) {
+      // Empty day found. The cascade of pulling stops here.
+      break
+    }
+    
+    // Record updates
+    logsOnDateToPull.forEach(id => {
+      const log = logMap.get(id)
+      updates.push({ id, newDate: pullTargetDateStr, originalDate: log?.original_date || null, oldDate: dateToPullFrom })
+    })
+    
+    // Set up next iteration
+    pullTargetDateStr = dateToPullFrom
+    dateToPullFrom = format(getNextValidSchoolDay(parseISO(pullTargetDateStr), holidays as Holiday[] || [], trips), 'yyyy-MM-dd')
+  }
+
+  // 6. Execute Updates
+  for (const u of updates) {
+    const updatePayload: any = { date: u.newDate }
+    if (!u.originalDate) {
+      updatePayload.original_date = u.oldDate
+    }
+    
+    const { error } = await supabase
+      .from('daily_logs')
+      .update(updatePayload)
+      .eq('id', u.id)
+
+    if (error) {
+      console.error("Bump back update error:", error)
+      throw new Error("Failed to update logs during bump back cascade.")
+    }
+  }
+
+  revalidatePath('/calendar')
+  return { success: true }
+}
+
 export async function createActivity(data: { 
   type:'Course'|'Activity', 
   subject_id?: string, 
@@ -120,11 +208,20 @@ export async function createActivity(data: {
   students: string[],
   recurringRule?: string,
   recurringCount?: number,
-  is_starred?: boolean
+  is_starred?: boolean,
+  is_completed?: boolean
 }) {
   const { supabase } = await requireAuth()
   
-  // Get active academic year
+  if (data.students.length === 0) throw new Error("At least one student must be selected")
+  
+  // Fetch academic year for the students to properly attach the log
+  const { data: activeYears } = await supabase
+    .from('student_academic_years')
+    .select('student_id, academic_year_id')
+    .in('student_id', data.students)
+    
+  // Fallback: Get any active academic year just in case a student is missing one
   const { data: year } = await supabase.from('academic_years').select('id').eq('is_active', true).single()
   
   let yearId = year?.id
@@ -169,12 +266,14 @@ export async function createActivity(data: {
     const sharedGroupId = crypto.randomUUID()
 
     for (const studentId of data.students) {
+      const studentYearId = activeYears?.find(y => y.student_id === studentId)?.academic_year_id || yearId
       inserts.push({
         student_id: studentId,
-        academic_year_id: yearId,
+        academic_year_id: studentYearId,
         date: dateStr,
         notes: data.notes ||'',
-        log_type:'Planned',
+        log_type: data.is_completed ? 'Completed' : 'Planned',
+        completed_date: data.is_completed ? new Date().toISOString() : null,
         duration_minutes: data.duration_minutes || 30,
         subject_id: data.type ==='Course'? (data.subject_id || undefined) : undefined,
         activity_id: data.type ==='Activity'? (data.activity_id || undefined) : undefined,
@@ -205,14 +304,14 @@ export async function createActivity(data: {
   return { success: true }
 }
 
-export async function updateActivity(id: string, data: { type:'Course'|'Activity', subject_id?: string, activity_id?: string, notes?: string, date: string, time?: string, duration_minutes?: number, file_url?: string, students?: string[], is_starred?: boolean }) {
+export async function updateActivity(id: string, data: { type:'Course'|'Activity', subject_id?: string, activity_id?: string, notes?: string, date: string, time?: string, duration_minutes?: number, file_url?: string, students?: string[], is_starred?: boolean, is_completed?: boolean }) {
   const { supabase } = await requireAuth()
   
   if (data.students && data.students.length === 0) {
     return deleteActivity(id)
   }
 
-  const { data: log } = await supabase.from('daily_logs').select('shared_activity_group_id, academic_year_id, recurring_group_id').eq('id', id).single()
+  const { data: log } = await supabase.from('daily_logs').select('shared_activity_group_id, academic_year_id, recurring_group_id, completed_date, log_type').eq('id', id).single()
 
   const updateData: any = {
     notes: data.notes ||'', 
@@ -224,6 +323,16 @@ export async function updateActivity(id: string, data: { type:'Course'|'Activity
   }
   if (data.duration_minutes) updateData.duration_minutes = data.duration_minutes
   if (data.file_url !== undefined) updateData.file_url = data.file_url
+
+  if (data.is_completed !== undefined) {
+    if (data.is_completed && !log?.completed_date) {
+      updateData.log_type = 'Completed'
+      updateData.completed_date = new Date().toISOString()
+    } else if (!data.is_completed && log?.completed_date) {
+      updateData.log_type = 'Planned'
+      updateData.completed_date = null
+    }
+  }
 
   if (log?.shared_activity_group_id && data.students) {
     // 1. Update existing logs
@@ -256,12 +365,20 @@ export async function updateActivity(id: string, data: { type:'Course'|'Activity
     }
 
     if (toAdd.length > 0) {
-      const inserts = toAdd.map(studentId => ({
-        student_id: studentId,
-        academic_year_id: log.academic_year_id,
+      const { data: activeYears } = await supabase
+        .from('student_academic_years')
+        .select('student_id, academic_year_id')
+        .in('student_id', toAdd)
+
+      const inserts = toAdd.map(studentId => {
+        const studentYearId = activeYears?.find(y => y.student_id === studentId)?.academic_year_id || log.academic_year_id
+        return {
+          student_id: studentId,
+          academic_year_id: studentYearId,
         date: updateData.date,
         notes: updateData.notes,
-        log_type: 'Planned',
+        log_type: updateData.log_type || log?.log_type || 'Planned',
+        completed_date: updateData.completed_date || log?.completed_date || null,
         duration_minutes: updateData.duration_minutes || 30,
         subject_id: updateData.subject_id,
         activity_id: updateData.activity_id,
@@ -270,7 +387,8 @@ export async function updateActivity(id: string, data: { type:'Course'|'Activity
         time_of_day: updateData.time_of_day,
         file_url: updateData.file_url,
         is_starred: updateData.is_starred
-      }))
+      }
+    })
       const { data: insertedNewLogs, error: newLogsError } = await supabase.from('daily_logs').insert(inserts).select()
       if (newLogsError) throw new Error(newLogsError.message)
       
@@ -455,45 +573,26 @@ export async function createTrip(data: { title: string, location: string, start_
 
     // Auto-create daily_logs for the trip if hours are credited
     if ((data.hours_credited || 0) > 0) {
-      // Find current academic year
-      const { data: year } = await supabase.from('academic_years').select('id').eq('is_active', true).single()
-      let yearId = year?.id
-      if (!yearId) {
-        const { data: anyYear } = await supabase.from('academic_years').select('id').limit(1).maybeSingle()
-        yearId = anyYear?.id
-      }
+      // Fetch academic year for the students to properly attach the log
+      const { data: activeYears } = await supabase
+        .from('student_academic_years')
+        .select('student_id, academic_year_id')
+        .in('student_id', data.students)
       
-      if (yearId) {
-        const logInserts: any[] = []
-        if (data.subject_ids && data.subject_ids.length > 0) {
-          const durationPerSubject = ((data.hours_credited || 0) * 60) / data.subject_ids.length
-          for (const subjectId of data.subject_ids) {
-            const sharedGroupId = crypto.randomUUID()
-            for (const studentId of data.students) {
-              logInserts.push({
-                student_id: studentId,
-                academic_year_id: yearId,
-                date: data.start_date,
-                log_type: 'Field Trip',
-                duration_minutes: durationPerSubject,
-                subject_id: subjectId,
-                notes: `Trip: ${data.title}`,
-                trip_id: trip.id,
-                pending_parent_approval: false,
-                shared_activity_group_id: sharedGroupId
-              })
-            }
-          }
-        } else {
+      const logInserts: any[] = []
+      if (data.subject_ids && data.subject_ids.length > 0) {
+        const durationPerSubject = ((data.hours_credited || 0) * 60) / data.subject_ids.length
+        for (const subjectId of data.subject_ids) {
           const sharedGroupId = crypto.randomUUID()
           for (const studentId of data.students) {
+            const yearId = activeYears?.find(y => y.student_id === studentId)?.academic_year_id || null
             logInserts.push({
               student_id: studentId,
               academic_year_id: yearId,
               date: data.start_date,
               log_type: 'Field Trip',
-              duration_minutes: (data.hours_credited || 0) * 60,
-              subject_id: null,
+              duration_minutes: durationPerSubject,
+              subject_id: subjectId,
               notes: `Trip: ${data.title}`,
               trip_id: trip.id,
               pending_parent_approval: false,
@@ -501,9 +600,26 @@ export async function createTrip(data: { title: string, location: string, start_
             })
           }
         }
-        const { error: logError } = await supabase.from('daily_logs').insert(logInserts)
-        if (logError) throw new Error(logError.message)
+      } else {
+        const sharedGroupId = crypto.randomUUID()
+        for (const studentId of data.students) {
+          const yearId = activeYears?.find(y => y.student_id === studentId)?.academic_year_id || null
+          logInserts.push({
+            student_id: studentId,
+            academic_year_id: yearId,
+            date: data.start_date,
+            log_type: 'Field Trip',
+            duration_minutes: (data.hours_credited || 0) * 60,
+            subject_id: null,
+            notes: `Trip: ${data.title}`,
+            trip_id: trip.id,
+            pending_parent_approval: false,
+            shared_activity_group_id: sharedGroupId
+          })
+        }
       }
+      const { error: logError } = await supabase.from('daily_logs').insert(logInserts)
+      if (logError) throw new Error(logError.message)
     }
   }
   
@@ -578,45 +694,26 @@ export async function updateTrip(id: string, data: { title: string, location: st
 
     // Re-create daily_logs for the trip if hours are credited
     if ((data.hours_credited || 0) > 0) {
-      // Find current academic year
-      const { data: year } = await supabase.from('academic_years').select('id').eq('is_active', true).single()
-      let yearId = year?.id
-      if (!yearId) {
-        const { data: anyYear } = await supabase.from('academic_years').select('id').limit(1).maybeSingle()
-        yearId = anyYear?.id
-      }
+      // Fetch academic year for the students to properly attach the log
+      const { data: activeYears } = await supabase
+        .from('student_academic_years')
+        .select('student_id, academic_year_id')
+        .in('student_id', data.students)
       
-      if (yearId) {
-        const logInserts: any[] = []
-        if (data.subject_ids && data.subject_ids.length > 0) {
-          const durationPerSubject = ((data.hours_credited || 0) * 60) / data.subject_ids.length
-          for (const subjectId of data.subject_ids) {
-            const sharedGroupId = crypto.randomUUID()
-            for (const studentId of data.students) {
-              logInserts.push({
-                student_id: studentId,
-                academic_year_id: yearId,
-                date: data.start_date,
-                log_type: 'Field Trip',
-                duration_minutes: durationPerSubject,
-                subject_id: subjectId,
-                notes: `Trip: ${data.title}`,
-                trip_id: id,
-                pending_parent_approval: false,
-                shared_activity_group_id: sharedGroupId
-              })
-            }
-          }
-        } else {
+      const logInserts: any[] = []
+      if (data.subject_ids && data.subject_ids.length > 0) {
+        const durationPerSubject = ((data.hours_credited || 0) * 60) / data.subject_ids.length
+        for (const subjectId of data.subject_ids) {
           const sharedGroupId = crypto.randomUUID()
           for (const studentId of data.students) {
+            const yearId = activeYears?.find(y => y.student_id === studentId)?.academic_year_id || null
             logInserts.push({
               student_id: studentId,
               academic_year_id: yearId,
               date: data.start_date,
               log_type: 'Field Trip',
-              duration_minutes: (data.hours_credited || 0) * 60,
-              subject_id: null,
+              duration_minutes: durationPerSubject,
+              subject_id: subjectId,
               notes: `Trip: ${data.title}`,
               trip_id: id,
               pending_parent_approval: false,
@@ -624,9 +721,26 @@ export async function updateTrip(id: string, data: { title: string, location: st
             })
           }
         }
-        const { error: logError } = await supabase.from('daily_logs').insert(logInserts)
-        if (logError) throw new Error(logError.message)
+      } else {
+        const sharedGroupId = crypto.randomUUID()
+        for (const studentId of data.students) {
+          const yearId = activeYears?.find(y => y.student_id === studentId)?.academic_year_id || null
+          logInserts.push({
+            student_id: studentId,
+            academic_year_id: yearId,
+            date: data.start_date,
+            log_type: 'Field Trip',
+            duration_minutes: (data.hours_credited || 0) * 60,
+            subject_id: null,
+            notes: `Trip: ${data.title}`,
+            trip_id: id,
+            pending_parent_approval: false,
+            shared_activity_group_id: sharedGroupId
+          })
+        }
       }
+      const { error: logError } = await supabase.from('daily_logs').insert(logInserts)
+      if (logError) throw new Error(logError.message)
     }
   }
   

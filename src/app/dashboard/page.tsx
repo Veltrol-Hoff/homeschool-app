@@ -44,9 +44,18 @@ export default async function DashboardPage() {
   sevenDaysAgo.setDate(todayDate.getDate() - 7)
   const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0]
 
-  const { data: logs } = await supabase
-    .from('daily_logs')
-    .select('*, subjects(name, color_hex, icon_name), activities(name, color, icon)')
+  let logs: any[] = []
+  let page = 0
+  while (true) {
+    const { data, error } = await supabase
+      .from('daily_logs')
+      .select('*, subjects(name, color_hex, icon_name), activities(name, color, icon)')
+      .range(page * 1000, (page + 1) * 1000 - 1)
+    if (error) break
+    if (data && data.length > 0) logs = logs.concat(data)
+    if (!data || data.length < 1000) break
+    page++
+  }
 
   const { data: recentStandards } = await supabase
     .from('curriculum_item_standards')
@@ -149,7 +158,7 @@ export default async function DashboardPage() {
     const hoursDetails = `Logged ${totalHours}h / Expected ${expectedHours}h by today`
     
     const studentAssignments = allAssignments?.filter(a => a.student_id === student.id) || []
-    const dueItems = todayLogs.filter(log => log.log_type ==='Planned')
+    const dueItems = todayLogs.filter(log => log.log_type === 'Planned' || log.log_type === 'Completed')
     
     // Sort dueItems by time if available
     dueItems.sort((a, b) => {

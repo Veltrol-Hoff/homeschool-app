@@ -1,4 +1,4 @@
-import { isWeekend, addDays, format, parseISO } from'date-fns'
+import { isWeekend, addDays, subDays, format, parseISO } from'date-fns'
 
 export interface Trip {
   id: string
@@ -54,4 +54,21 @@ export function getNextValidSchoolDay(currentDate: Date, holidays: Holiday[], tr
   }
   
   return nextDate
+}
+
+/**
+ * Gets the previous valid school day before the provided date
+ */
+export function getPreviousValidSchoolDay(currentDate: Date, holidays: Holiday[], trips: Trip[]): Date {
+  let prevDate = subDays(currentDate, 1)
+  
+  // Safety break to prevent infinite loops
+  let maxLookback = 365 
+  
+  while (!isSchoolDay(prevDate, holidays, trips) && maxLookback > 0) {
+    prevDate = subDays(prevDate, 1)
+    maxLookback--
+  }
+  
+  return prevDate
 }

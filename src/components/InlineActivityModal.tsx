@@ -125,6 +125,7 @@ export default function InlineActivityModal({
         const activity_id = formData.get('activity_id') as string
         const duration_minutes = parseInt(formData.get('duration_minutes') as string) || 30
         const is_starred = formData.get('is_starred') === 'on'
+        const is_completed = formData.get('is_completed') === 'on'
         
         let file_url = existingData?.file_url
         if (file) {
@@ -146,10 +147,10 @@ export default function InlineActivityModal({
             const { updateRecurringActivity } = await import('@/app/calendar/actions')
             await updateRecurringActivity(existingData.recurring_group_id, existingData.date, { type: activeTab, subject_id, activity_id, notes, date, time, duration_minutes, file_url, students: selectedStudents })
           } else {
-            await updateActivity(editId, { type: activeTab, subject_id, activity_id, notes, date, time, duration_minutes, file_url, students: selectedStudents, is_starred })
+            await updateActivity(editId, { type: activeTab, subject_id, activity_id, notes, date, time, duration_minutes, file_url, students: selectedStudents, is_starred, is_completed })
           }
         } else {
-          await createActivity({ type: activeTab, subject_id, activity_id, notes, date, time, duration_minutes, file_url, students: selectedStudents, recurringRule, recurringCount, is_starred })
+          await createActivity({ type: activeTab, subject_id, activity_id, notes, date, time, duration_minutes, file_url, students: selectedStudents, recurringRule, recurringCount, is_starred, is_completed })
         }
       }
       
@@ -273,14 +274,24 @@ export default function InlineActivityModal({
               <label className="block text-sm font-medium mb-1">
                 {activeTab ==='Trip'?'Trip Title':'Notes (Optional)'}
               </label>
-              <input 
-                type="text"
-                name={activeTab ==='Trip'?'title':'notes'} 
-                placeholder={activeTab ==='Trip'?"e.g. Hawaii Vacation":"e.g. Swim Practice or Lesson 4"} 
-                required={activeTab ==='Trip'} 
-                defaultValue={existingData?.notes || existingData?.title ||''}
-                className="w-full rounded-md border-stone-300 shadow-sm focus:border-slate-500   p-2 text-sm"
-              />
+              {activeTab === 'Trip' ? (
+                <input 
+                  type="text"
+                  name="title"
+                  placeholder="e.g. Hawaii Vacation"
+                  required
+                  defaultValue={existingData?.title ||''}
+                  className="w-full rounded-md border-stone-300 shadow-sm focus:border-slate-500 p-2 text-sm"
+                />
+              ) : (
+                <textarea
+                  name="notes"
+                  placeholder="e.g. Swim Practice or Lesson 4"
+                  rows={4}
+                  defaultValue={existingData?.notes || ''}
+                  className="w-full rounded-md border-stone-300 shadow-sm focus:border-slate-500 p-2 text-sm resize-y"
+                />
+              )}
             </div>
 
             {/* Students Multi-Select (Tasks & Activities) */}
@@ -351,17 +362,32 @@ export default function InlineActivityModal({
                   </div>
                 </div>
                 
-                <div className="flex items-center gap-2 mt-4 p-3 rounded-md border border-amber-200 bg-amber-50">
-                  <input 
-                    type="checkbox" 
-                    id="is_starred" 
-                    name="is_starred" 
-                    defaultChecked={existingData?.is_starred || false}
-                    className="rounded border-amber-300 text-amber-500 focus:ring-amber-500 cursor-pointer" 
-                  />
-                  <label htmlFor="is_starred" className="text-sm font-medium text-amber-800 cursor-pointer flex items-center gap-2">
-                    <LucideIcons.Star size={16} className="fill-amber-500 text-amber-500" /> Highlight on Calendar
-                  </label>
+                <div className="flex items-center gap-4 mt-4">
+                  <div className="flex items-center gap-2 p-3 rounded-md border border-amber-200 bg-amber-50 flex-1">
+                    <input 
+                      type="checkbox" 
+                      id="is_starred" 
+                      name="is_starred" 
+                      defaultChecked={existingData?.is_starred || false}
+                      className="rounded border-amber-300 text-amber-500 focus:ring-amber-500 cursor-pointer" 
+                    />
+                    <label htmlFor="is_starred" className="text-sm font-medium text-amber-800 cursor-pointer flex items-center gap-2">
+                      <LucideIcons.Star size={16} className="fill-amber-500 text-amber-500" /> Highlight on Calendar
+                    </label>
+                  </div>
+
+                  <div className="flex items-center gap-2 p-3 rounded-md border border-emerald-200 bg-emerald-50 flex-1">
+                    <input 
+                      type="checkbox" 
+                      id="is_completed" 
+                      name="is_completed" 
+                      defaultChecked={!!existingData?.completed_date}
+                      className="rounded border-emerald-300 text-emerald-500 focus:ring-emerald-500 cursor-pointer" 
+                    />
+                    <label htmlFor="is_completed" className="text-sm font-medium text-emerald-800 cursor-pointer flex items-center gap-2">
+                      <LucideIcons.CheckCircle size={16} className="text-emerald-500" /> Mark Completed
+                    </label>
+                  </div>
                 </div>
                 {editId && existingData?.recurring_group_id && (
                   <div className="flex items-center gap-2 mt-2 bg-slate-50 p-3 rounded-md border border-slate-200">

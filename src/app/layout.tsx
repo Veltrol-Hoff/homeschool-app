@@ -70,7 +70,6 @@ export default async function RootLayout({
           <Suspense fallback={null}>
             <GlobalModalManager students={students || []} subjects={subjects || []} activities={activities || []} />
           </Suspense>
-          <AudioLogger />
         </Navigation>
       </body>
     </html>

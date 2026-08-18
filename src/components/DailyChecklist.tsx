@@ -2,7 +2,7 @@
 
 import * as LucideIcons from'lucide-react'
 import { useRouter, useSearchParams } from'next/navigation'
-import { useTransition } from'react'
+import { useTransition, useState } from'react'
 import { toggleLogCompletion } from'@/app/calendar/actions'
 
 function renderIcon(iconName: string | undefined, className ="w-5 h-5") {
@@ -15,18 +15,26 @@ export default function DailyChecklist({ dayLogs }: { dayLogs: any[] }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
+  const [completionPrompt, setCompletionPrompt] = useState<{id: string, currentlyCompleted: boolean} | null>(null)
 
   function handleToggleCompletion(id: string, currentlyCompleted: boolean, logDate: string) {
     if (!currentlyCompleted && logDate !== new Date().toISOString().split('T')[0]) {
-      const moveToToday = confirm("Do you want to move this task to today before checking it off?")
-      startTransition(async () => {
-        await toggleLogCompletion(id, !currentlyCompleted, moveToToday)
-      })
+      setCompletionPrompt({ id, currentlyCompleted })
     } else {
       startTransition(async () => {
         await toggleLogCompletion(id, !currentlyCompleted, false)
       })
     }
+  }
+
+  function handlePromptResponse(moveToToday: boolean | null) {
+    if (!completionPrompt) return
+    if (moveToToday !== null) {
+      startTransition(async () => {
+        await toggleLogCompletion(completionPrompt.id, !completionPrompt.currentlyCompleted, moveToToday)
+      })
+    }
+    setCompletionPrompt(null)
   }
 
   if (!dayLogs || dayLogs.length === 0) {
@@ -51,8 +59,7 @@ export default function DailyChecklist({ dayLogs }: { dayLogs: any[] }) {
         
         let bgStyle = studentColors[0] ||'#10B981'
         if (studentColors.length > 1) {
-          const step = 100 / studentColors.length
-          const stops = studentColors.map((c: string, i: number) => `${c} ${i * step}%, ${c} ${(i + 1) * step}%`).join(',')
+          const stops = studentColors.map((c: string, i: number) => `${c} ${(i * 100) / studentColors.length}%, ${c} ${((i + 1) * 100) / studentColors.length}%`).join(', ')
           bgStyle = `linear-gradient(to bottom, ${stops})`
         }
         if (isCompleted) {
@@ -103,10 +110,12 @@ export default function DailyChecklist({ dayLogs }: { dayLogs: any[] }) {
                     className="rounded border-stone-300 text-slate-600 focus:ring-slate-500 cursor-pointer w-5 h-5 flex-shrink-0"
                   />
                 </div>
-                <span className={`flex items-center gap-2 ${isCompleted ?'line-through opacity-70':''}`}>
-                  <span style={{ color: subjColor }}>{renderIcon(subjIcon,"w-5 h-5")}</span>
-                  <strong>{timeStr}{l.subjects?.name || l.activities?.name ||'Log'}:</strong> {l.notes || l.log_type}
-                </span>
+                <div className={`flex items-start gap-2 ${isCompleted ?'line-through opacity-70':''}`}>
+                  <span style={{ color: subjColor }} className="mt-0.5 flex-shrink-0">{renderIcon(subjIcon,"w-5 h-5")}</span>
+                  <div className="break-words leading-snug pt-0.5">
+                    <strong>{timeStr}{l.subjects?.name || l.activities?.name ||'Log'}:</strong> {l.notes || l.log_type}
+                  </div>
+                </div>
               </div>
               <div className="flex items-center gap-4">
                 {l.file_url && (
@@ -142,6 +151,39 @@ export default function DailyChecklist({ dayLogs }: { dayLogs: any[] }) {
           </div>
         )
       })}
+
+      {completionPrompt && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-sm overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-stone-200 bg-stone-50">
+              <h3 className="font-bold text-lg text-stone-900">Move to Today?</h3>
+            </div>
+            <div className="p-4 text-stone-600 text-sm">
+              Since this task was scheduled for a different day, do you want to move it to today's date before checking it off?
+            </div>
+            <div className="p-4 bg-stone-50 border-t border-stone-200 flex justify-end gap-3">
+              <button 
+                onClick={() => handlePromptResponse(null)}
+                className="px-4 py-2 text-stone-500 hover:text-stone-700 font-medium text-sm transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => handlePromptResponse(false)}
+                className="px-4 py-2 bg-stone-200 hover:bg-stone-300 text-stone-800 rounded-md font-medium text-sm transition-colors"
+              >
+                No
+              </button>
+              <button 
+                onClick={() => handlePromptResponse(true)}
+                className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-md font-medium text-sm transition-colors"
+              >
+                Yes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

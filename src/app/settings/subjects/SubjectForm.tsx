@@ -26,7 +26,7 @@ export default function SubjectForm({
     setIsSubmitting(true)
     setError(null)
     
-    const form = e.currentTarget
+    const form = e.target as HTMLFormElement
     const formData = new FormData(form)
     formData.append('color_hex', selectedColor)
     formData.append('icon_name', selectedIcon)

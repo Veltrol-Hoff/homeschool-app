@@ -19,11 +19,30 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const selectedStudentIds = sp.student ? sp.student.split(',') : students.map(s => s.id)
   const view = sp.view ||'month'
 
-  // Fetch logs for these students
-  const { data: logs, error: logsError } = await supabase
-    .from('daily_logs')
-    .select('*, subjects(name, color_hex, icon_name), students!daily_logs_student_id_fkey(display_color), activities(name, color, icon), is_starred')
-    .in('student_id', selectedStudentIds)
+  // Fetch logs for these students (paginate to bypass 1000 row limit)
+  let logs: any[] = []
+  let logsError: any = null
+  let page = 0
+  while (true) {
+    const { data, error } = await supabase
+      .from('daily_logs')
+      .select('*, subjects(name, color_hex, icon_name), students!daily_logs_student_id_fkey(display_color), activities(name, color, icon), is_starred')
+      .in('student_id', selectedStudentIds)
+      .range(page * 1000, (page + 1) * 1000 - 1)
+    
+    if (error) {
+      console.error(error)
+      logsError = error
+      break
+    }
+    if (data && data.length > 0) {
+      logs = logs.concat(data)
+    }
+    if (!data || data.length < 1000) {
+      break
+    }
+    page++
+  }
 
   // Fetch trips for these students
   const { data: tripStudents } = await supabase
