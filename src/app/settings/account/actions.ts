@@ -97,6 +97,21 @@ export async function deleteAcademicYear(id: string) {
   revalidatePath('/settings/account')
 }
 
+export async function setActiveAcademicYear(id: string) {
+  const supabase = await createClient()
+  
+  // Clear existing active flags
+  await supabase.from('academic_years').update({ is_active: false }).neq('id', id)
+  
+  // Set the new one
+  const { error } = await supabase.from('academic_years').update({ is_active: true }).eq('id', id)
+  if (error) throw new Error(error.message)
+  
+  revalidatePath('/settings/account')
+  revalidatePath('/settings/students')
+  revalidatePath('/dashboard')
+}
+
 export async function deleteUserAction(id: string) {
   const supabase = await createClient()
   

@@ -71,6 +71,16 @@ export default function InlineActivityModal({
           if (data) {
             setExistingData(data)
             setActiveTab(data.subject_id ? 'Course' : 'Activity')
+            
+            if (data.shared_activity_group_id) {
+              const { data: groupLogs } = await supabase.from('daily_logs').select('student_id').eq('shared_activity_group_id', data.shared_activity_group_id)
+              if (groupLogs) {
+                setSelectedStudents(groupLogs.map((l: any) => l.student_id))
+              }
+            } else {
+              setSelectedStudents([data.student_id])
+            }
+            
             await fetchMedia()
           }
         }
@@ -80,6 +90,8 @@ export default function InlineActivityModal({
     } else {
       setIsLoading(false)
       setExistingData(null)
+      setSelectedStudents(students.map(s => s.id))
+      setArtifacts([])
     }
   }, [editId, initialTab])
 

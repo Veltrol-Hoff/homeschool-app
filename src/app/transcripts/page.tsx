@@ -54,9 +54,19 @@ export default async function TranscriptsPage() {
     .order('name')
 
   // Fetch logs for duration calculations
-  const { data: logs } = await supabase
-    .from('daily_logs')
-    .select('student_id, academic_year_id, subject_id, duration_minutes')
+  let logs: any[] = []
+  let page = 0
+  while (true) {
+    const { data } = await supabase
+      .from('daily_logs')
+      .select('student_id, academic_year_id, subject_id, duration_minutes')
+      .neq('log_type', 'Planned')
+      .range(page * 1000, (page + 1) * 1000 - 1)
+      
+    if (data && data.length > 0) logs = logs.concat(data)
+    if (!data || data.length < 1000) break
+    page++
+  }
 
   // Fetch work samples for grade projections
   // Note: we're keeping it simple for now, maybe just pulling statuses.

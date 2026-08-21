@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { createAcademicYear, deleteAcademicYear, updateAcademicYear } from './actions'
+import { createAcademicYear, deleteAcademicYear, updateAcademicYear, setActiveAcademicYear } from './actions'
 
 export default function AcademicYearManager({ academicYears }: { academicYears: any[] }) {
   const [isAdding, setIsAdding] = useState(false)
@@ -78,10 +78,25 @@ export default function AcademicYearManager({ academicYears }: { academicYears: 
             ) : (
               <div className="p-4 flex items-center justify-between hover:bg-stone-50 transition-colors">
                 <div>
-                  <div className="font-medium text-slate-800">{year.name}</div>
+                  <div className="font-medium text-slate-800 flex items-center gap-2">
+                    {year.name}
+                    {year.is_active && (
+                      <span className="bg-emerald-100 text-emerald-800 text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded">Active</span>
+                    )}
+                  </div>
                   <div className="text-sm text-stone-600">{year.start_date} to {year.end_date}</div>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex gap-3 items-center">
+                  {!year.is_active && (
+                    <button 
+                      onClick={async () => {
+                        await setActiveAcademicYear(year.id)
+                      }}
+                      className="text-emerald-600 hover:text-emerald-700 text-sm font-medium"
+                    >
+                      Set Active
+                    </button>
+                  )}
                   <button 
                     onClick={() => setEditingId(year.id)}
                     className="text-slate-500 hover:text-slate-700 text-sm font-medium"

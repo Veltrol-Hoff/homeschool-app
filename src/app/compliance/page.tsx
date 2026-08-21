@@ -30,7 +30,22 @@ export default async function CompliancePage() {
   const { data: pi1206Forms } = await supabase.from('pi_1206_forms').select('*')
   const { data: studentYears } = await supabase.from('student_academic_years').select('*')
   const { data: subjects } = await supabase.from('subjects').select('*')
-  const { data: logs } = await supabase.from('daily_logs').select('*').limit(10000)
+  
+  let logs: any[] = []
+  let page = 0
+  while (true) {
+    const { data } = await supabase.from('daily_logs')
+      .select('*')
+      .range(page * 1000, (page + 1) * 1000 - 1)
+      
+    if (data && data.length > 0) {
+      logs = logs.concat(data)
+    }
+    if (!data || data.length < 1000) {
+      break
+    }
+    page++
+  }
   
   // Fetch global compliance settings
   const { data: settingsData } = await supabase.from('school_settings').select('*').single()

@@ -10,12 +10,20 @@ export async function fetchExportData(studentId: string, yearId: string) {
     .from('daily_logs')
     .select('duration_minutes, subject_id')
     .eq('student_id', studentId)
+    .neq('log_type', 'Planned')
     
   if (yearId !=='all') {
     logsQuery = logsQuery.eq('academic_year_id', yearId)
   }
 
-  const { data: logs } = await logsQuery
+  let logs: any[] = []
+  let page = 0
+  while (true) {
+    const { data } = await logsQuery.range(page * 1000, (page + 1) * 1000 - 1)
+    if (data && data.length > 0) logs = logs.concat(data)
+    if (!data || data.length < 1000) break
+    page++
+  }
 
   const totalMinutes = logs?.reduce((acc, l) => acc + l.duration_minutes, 0) || 0
   const totalHours = Math.round((totalMinutes / 60) * 10) / 10
